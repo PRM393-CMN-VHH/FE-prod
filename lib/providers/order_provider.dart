@@ -30,6 +30,15 @@ class OrderProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<String?> getVnpayUrl({required double amount, required String orderId}) async {
+    try {
+      return await _apiService.createVnpayPaymentUrl(amount: amount, orderId: orderId);
+    } catch (e) {
+      _errorMessage = e.toString();
+      return null;
+    }
+  }
+
   Future<OrderModel?> placeOrder({
     required String recipientName,
     required String recipientPhone,
@@ -37,6 +46,7 @@ class OrderProvider extends ChangeNotifier {
     required String paymentMethod,
     required double totalAmount,
     required List<CartItem> cartItems,
+    String status = "Confirmed",
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -50,6 +60,7 @@ class OrderProvider extends ChangeNotifier {
         paymentMethod: paymentMethod,
         totalAmount: totalAmount,
         cartItems: cartItems,
+        status: status,
       );
       
       _orders.insert(0, order);

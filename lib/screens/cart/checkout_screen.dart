@@ -4,6 +4,7 @@ import 'package:prm393/providers/auth_provider.dart';
 import 'package:prm393/providers/cart_provider.dart';
 import 'package:prm393/providers/order_provider.dart';
 import 'package:prm393/theme/app_theme.dart';
+import 'package:prm393/screens/cart/vnpay_payment_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -49,6 +50,62 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final cartProv = Provider.of<CartProvider>(context, listen: false);
     final orderProv = Provider.of<OrderProvider>(context, listen: false);
 
+    if (_paymentMethod == 'VNPAY') {
+      // 1. Generate local/Supabase VNPAY payment URL
+      final txnRef = DateTime.now().millisecondsSinceEpoch.toString();
+      final paymentUrl = await orderProv.getVnpayUrl(
+        amount: cartProv.totalAmount,
+        orderId: txnRef,
+      );
+
+      if (paymentUrl == null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(orderProv.errorMessage ?? "Failed to initiate VNPAY payment"),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+
+      // 2. Open simulated VNPAY portal
+      if (mounted) {
+        final String? resultCode = await Navigator.push<String>(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VnpayPaymentScreen(
+              amount: cartProv.totalAmount,
+              orderId: txnRef,
+              paymentUrl: paymentUrl!,
+            ),
+          ),
+        );
+
+        if (resultCode == '00') {
+          // VNPAY Success, create order with "Paid (VNPAY)" status
+          _createFinalOrder("Paid (VNPAY)");
+        } else {
+          // Cancelled or failed
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("VNPAY transaction was cancelled or failed"),
+                backgroundColor: Colors.orangeAccent,
+              ),
+            );
+          }
+        }
+      }
+    } else {
+      // Standard COD/Bank transfer flow
+      _createFinalOrder("Confirmed");
+    }
+  }
+
+  void _createFinalOrder(String orderStatus) async {
+    final cartProv = Provider.of<CartProvider>(context, listen: false);
+    final orderProv = Provider.of<OrderProvider>(context, listen: false);
+
     final success = await orderProv.placeOrder(
       recipientName: _nameController.text.trim(),
       recipientPhone: _phoneController.text.trim(),
@@ -56,6 +113,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       paymentMethod: _paymentMethod,
       totalAmount: cartProv.totalAmount,
       cartItems: cartProv.items,
+      status: orderStatus,
     ) != null;
 
     if (success && mounted) {
@@ -68,8 +126,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
           title: const Text("Order Placed!"),
-          content: const Text(
-            "Your purchase was successful. We have sent a confirmation details alert to your Notifications inbox."
+          content: Text(
+            orderStatus == "Paid (VNPAY)"
+                ? "Your payment via VNPAY was successful! We have sent a confirmation alert to your Notifications inbox."
+                : "Your purchase was successful. We have sent a confirmation details alert to your Notifications inbox."
           ),
           actions: [
             TextButton(
@@ -286,6 +346,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           RadioListTile<String>(
                             title: const Text("Mock E-Wallet Pay"),
                             value: 'E-Wallet',
+                            groupValue: _paymentMethod,
+                            activeColor: AppTheme.primaryColor,
+                            onChanged: (val) {
+                              setState(() {
+                                _paymentMethod = val!;
+                              });
+                            },
+                          ),
+                          const Divider(height: 1, indent: 16, endIndent: 16),
+                          RadioListTile<String>(
+                            title: const Text("Pay via VNPAY (ATM/Bank)"),
+                            value: 'VNPAY',
                             groupValue: _paymentMethod,
                             activeColor: AppTheme.primaryColor,
                             onChanged: (val) {

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:prm393/models/category.dart';
@@ -16,8 +17,122 @@ class ApiService {
   factory ApiService() => _instance;
   ApiService._internal();
 
+  // ==========================================
+  // API URL CONSTANTS & CONFIGURATIONS
+  // ==========================================
+  
+  // Base URLs
+  static const String backendBaseUrl = "https://api.tiemhoaxinh.vn/api/v1";
+  static const String defaultSupabaseUrl = "https://your-project-id.supabase.co";
+  static const String defaultSupabaseAnonKey = "your-anon-key-here";
+
+  // Auth Routes
+  static const String apiSignIn = "$backendBaseUrl/auth/signin";
+  static const String apiSignUp = "$backendBaseUrl/auth/signup";
+  static const String apiSignOut = "$backendBaseUrl/auth/signout";
+  static const String apiProfile = "$backendBaseUrl/user/profile";
+
+  // Catalog & Shopping Routes
+  static const String apiProducts = "$backendBaseUrl/products";
+  static const String apiCategories = "$backendBaseUrl/categories";
+  static const String apiCart = "$backendBaseUrl/cart";
+  static const String apiOrders = "$backendBaseUrl/orders";
+  
+  // Support, Stores & Notifications Routes
+  static const String apiNotifications = "$backendBaseUrl/notifications";
+  static const String apiMessages = "$backendBaseUrl/messages";
+  static const String apiStoreLocations = "$backendBaseUrl/stores";
+
+  // Payment Gateway Routes
+  static const String apiVnpayCreate = "$backendBaseUrl/payment/vnpay/create";
+  static const String vnpaySandboxUrl = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
+
   SupabaseClient? _supabase;
   bool get isSupabaseInitialized => _supabase != null;
+
+  // ==========================================
+  // GENERIC HTTP CRUD UTILITIES
+  // ==========================================
+
+  Future<Map<String, String>> _getHeaders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userStr = prefs.getString(_keyUser);
+    final headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+    if (userStr != null) {
+      try {
+        final userMap = jsonDecode(userStr) as Map<String, dynamic>;
+        final token = userMap['id'] as String;
+        // Prefixes standard mock authorization headers if needed
+        headers['Authorization'] = 'Bearer $token';
+      } catch (_) {}
+    }
+    return headers;
+  }
+
+  Future<dynamic> getRequest(String url) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(Uri.parse(url), headers: headers);
+      return _processResponse(response);
+    } catch (e) {
+      throw Exception("GET Request failed: $e");
+    }
+  }
+
+  Future<dynamic> postRequest(String url, Map<String, dynamic> body) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.post(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode(body),
+      );
+      return _processResponse(response);
+    } catch (e) {
+      throw Exception("POST Request failed: $e");
+    }
+  }
+
+  Future<dynamic> putRequest(String url, Map<String, dynamic> body) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.put(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode(body),
+      );
+      return _processResponse(response);
+    } catch (e) {
+      throw Exception("PUT Request failed: $e");
+    }
+  }
+
+  Future<dynamic> deleteRequest(String url) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.delete(Uri.parse(url), headers: headers);
+      return _processResponse(response);
+    } catch (e) {
+      throw Exception("DELETE Request failed: $e");
+    }
+  }
+
+  dynamic _processResponse(http.Response response) {
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (response.body.isEmpty) return null;
+      return jsonDecode(response.body);
+    } else {
+      String msg = "HTTP Error ${response.statusCode}";
+      try {
+        final err = jsonDecode(response.body) as Map<String, dynamic>;
+        msg = err['message'] ?? err['error'] ?? msg;
+      } catch (_) {}
+      throw Exception(msg);
+    }
+  }
 
   // Local Storage Keys
   static const String _keyUser = 'api_user';
@@ -442,6 +557,48 @@ class ApiService {
     }
   }
 
+  // ==========================================
+  // VNPAY PAYMENT APIs
+  // ==========================================
+
+  Future<String> createVnpayPaymentUrl({
+    required double amount,
+    required String orderId,
+    String ipAddress = '127.0.0.1',
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 400));
+    
+    // In actual Supabase/REST backend:
+    // If Supabase is initialized, we trigger an edge function
+    if (isSupabaseInitialized) {
+      try {
+        final response = await _supabase!.functions.invoke('vnpay-create-payment', body: {
+          'amount': amount,
+          'orderId': orderId,
+          'ipAddress': ipAddress,
+        });
+        final data = jsonDecode(response.data as String) as Map<String, dynamic>;
+        return data['paymentUrl'] as String;
+      } catch (_) {}
+    }
+
+    // Local sandbox simulation URL
+    final amountInVnd = (amount * 25000).toInt(); // Conversion rate of 1 USD = 25,000 VND
+    return "$vnpaySandboxUrl"
+        "?vnp_Amount=$amountInVnd"
+        "&vnp_Command=pay"
+        "&vnp_CreateDate=${DateTime.now().millisecondsSinceEpoch}"
+        "&vnp_CurrCode=VND"
+        "&vnp_IpAddr=$ipAddress"
+        "&vnp_Locale=vn"
+        "&vnp_OrderInfo=Thanh+toan+don+hang+$orderId"
+        "&vnp_OrderType=other"
+        "&vnp_ReturnUrl=http%3A%2F%2Flocalhost%3A8080%2Fvnpay_return"
+        "&vnp_TmnCode=DEMO0001"
+        "&vnp_TxnRef=$orderId"
+        "&vnp_Version=2.1.0";
+  }
+
   Future<OrderModel> createOrder({
     required String recipientName,
     required String recipientPhone,
@@ -449,6 +606,7 @@ class ApiService {
     required String paymentMethod,
     required double totalAmount,
     required List<CartItem> cartItems,
+    String status = "Confirmed",
   }) async {
     await Future.delayed(const Duration(milliseconds: 800));
 
@@ -467,7 +625,7 @@ class ApiService {
       recipientPhone: recipientPhone,
       shippingAddress: shippingAddress,
       paymentMethod: paymentMethod,
-      status: "Confirmed",
+      status: status,
       createdAt: DateTime.now(),
       items: orderItems,
     );
@@ -505,7 +663,7 @@ class ApiService {
     // Trigger confirmation notification
     await addNotification(
       title: "Order Confirmed",
-      content: "Thank you for shopping. Your order of flower boutique (ID: $newOrderId) is confirmed and prepared for shipping.",
+      content: "Thank you for shopping. Your order of flower boutique (ID: $newOrderId) is confirmed and prepared for shipping. Payment status: $status.",
     );
 
     return order;
