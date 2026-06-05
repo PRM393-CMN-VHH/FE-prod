@@ -8,9 +8,11 @@ class Category {
   });
 
   factory Category.fromJson(Map<String, dynamic> json) {
+    final int catId = json['categoryId'] ?? json['id'] ?? 0;
+    final String catName = json['categoryName'] ?? json['name'] ?? '';
     return Category(
-      id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
-      name: json['name'] as String,
+      id: catId,
+      name: catName,
     );
   }
 

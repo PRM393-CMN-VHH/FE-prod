@@ -13,14 +13,11 @@ import 'package:prm393/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Supabase. Add your Supabase credentials here if you connect a real database backend.
   // Example: ApiService().initializeSupabase(url: 'https://xxx.supabase.co', anonKey: 'eyJhbGciOi...');
   // Leaving it empty defaults the app to a robust offline mock database state.
-  await ApiService().initializeSupabase(
-    url: '',
-    anonKey: '',
-  );
+  await ApiService().initializeSupabase(url: '', anonKey: '');
 
   runApp(const MyApp());
 }
@@ -40,7 +37,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ChatProvider()),
       ],
       child: MaterialApp(
-        title: 'Tiem Hoa Xinh',
+        title: 'Tiệm Hoa Xnh',
         theme: AppTheme.lightTheme,
         debugShowCheckedModeBanner: false,
         home: const AuthGate(),
@@ -56,12 +53,10 @@ class AuthGate extends StatelessWidget {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
 
-    if (authProvider.isLoading) {
+    if (authProvider.isCheckingSession) {
       return const Scaffold(
         body: Center(
-          child: CircularProgressIndicator(
-            color: AppTheme.primaryColor,
-          ),
+          child: CircularProgressIndicator(color: AppTheme.primaryColor),
         ),
       );
     }

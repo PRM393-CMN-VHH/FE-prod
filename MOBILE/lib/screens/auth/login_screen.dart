@@ -12,7 +12,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  
+
   // Fields controller
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -22,6 +22,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _isSignUp = false;
   bool _obscurePassword = true;
+
+  void _clearBackendError() {
+    Provider.of<AuthProvider>(context, listen: false).clearError();
+  }
 
   @override
   void dispose() {
@@ -57,15 +61,10 @@ class _LoginScreenState extends State<LoginScreen> {
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_isSignUp ? "Registration successful!" : "Login successful!"),
+          content: Text(
+            _isSignUp ? "Registration successful!" : "Login successful!",
+          ),
           backgroundColor: AppTheme.primaryColor,
-        ),
-      );
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.errorMessage ?? "An error occurred"),
-          backgroundColor: Colors.redAccent,
         ),
       );
     }
@@ -95,7 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    "Tiem Hoa Xinh",
+                    "Tiệm Hoa Xnh",
                     textAlign: TextAlign.center,
                     style: textTheme.headlineLarge?.copyWith(
                       color: AppTheme.primaryColor,
@@ -103,23 +102,27 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   Text(
-                    "Fresh Blooms Delivered Daily",
+                    "Hoa tươi giao mỗi ngày",
                     textAlign: TextAlign.center,
                     style: textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 40),
-                  
+
                   Text(
-                    _isSignUp ? "Create Account" : "Welcome Back",
+                    _isSignUp ? "Tạo tài khoản" : "Chào mừng trở lại",
                     style: textTheme.headlineMedium,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    _isSignUp 
-                        ? "Please fill details to register" 
-                        : "Please login to manage your flower purchases",
+                    _isSignUp
+                        ? "Nhập thông tin để đăng ký"
+                        : "Đăng nhập để mua hoa và quản lý đơn hàng",
                     style: textTheme.bodyMedium,
                   ),
+                  if (authProvider.errorMessage != null) ...[
+                    const SizedBox(height: 16),
+                    _InlineAuthError(message: authProvider.errorMessage!),
+                  ],
                   const SizedBox(height: 24),
 
                   // Fields
@@ -127,12 +130,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextFormField(
                       controller: _nameController,
                       decoration: const InputDecoration(
-                        labelText: "Full Name",
+                        labelText: "Họ và tên",
                         prefixIcon: Icon(Icons.person_outline),
                       ),
+                      onChanged: (_) => _clearBackendError(),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return "Please enter your name";
+                          return "Vui lòng nhập họ tên";
                         }
                         return null;
                       },
@@ -144,15 +148,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(
-                      labelText: "Email Address",
+                      labelText: "Email",
                       prefixIcon: Icon(Icons.mail_outline),
                     ),
+                    onChanged: (_) => _clearBackendError(),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return "Please enter your email";
+                        return "Vui lòng nhập email";
                       }
                       if (!value.contains('@')) {
-                        return "Please enter a valid email";
+                        return "Email không hợp lệ";
                       }
                       return null;
                     },
@@ -164,12 +169,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
                       decoration: const InputDecoration(
-                        labelText: "Phone Number",
+                        labelText: "Số điện thoại",
                         prefixIcon: Icon(Icons.phone_outlined),
                       ),
+                      onChanged: (_) => _clearBackendError(),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return "Please enter your phone number";
+                          return "Vui lòng nhập số điện thoại";
                         }
                         return null;
                       },
@@ -178,12 +184,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextFormField(
                       controller: _addressController,
                       decoration: const InputDecoration(
-                        labelText: "Delivery Address",
+                        labelText: "Địa chỉ giao hàng",
                         prefixIcon: Icon(Icons.home_outlined),
                       ),
+                      onChanged: (_) => _clearBackendError(),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return "Please enter your delivery address";
+                          return "Vui lòng nhập địa chỉ giao hàng";
                         }
                         return null;
                       },
@@ -195,11 +202,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: _passwordController,
                     obscureText: _obscurePassword,
                     decoration: InputDecoration(
-                      labelText: "Password",
+                      labelText: "Mật khẩu",
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          _obscurePassword
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
                         ),
                         onPressed: () {
                           setState(() {
@@ -208,47 +217,17 @@ class _LoginScreenState extends State<LoginScreen> {
                         },
                       ),
                     ),
+                    onChanged: (_) => _clearBackendError(),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return "Please enter your password";
+                        return "Vui lòng nhập mật khẩu";
                       }
                       if (value.length < 6) {
-                        return "Password must be at least 6 characters";
+                        return "Mật khẩu phải có ít nhất 6 ký tự";
                       }
                       return null;
                     },
                   ),
-                  const SizedBox(height: 8),
-
-                  if (!_isSignUp)
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {
-                          // Standard info alert for credentials helper
-                          showDialog(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text("Credentials Tip"),
-                              content: const Text(
-                                "To login with mock credentials, use password: 123456 (accepts any email)."
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx),
-                                  child: const Text("OK"),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                        child: const Text(
-                          "Forgot password?",
-                          style: TextStyle(color: AppTheme.primaryColor),
-                        ),
-                      ),
-                    ),
-                  
                   const SizedBox(height: 16),
 
                   authProvider.isLoading
@@ -259,16 +238,16 @@ class _LoginScreenState extends State<LoginScreen> {
                         )
                       : ElevatedButton(
                           onPressed: _submit,
-                          child: Text(_isSignUp ? "Register" : "Sign In"),
+                          child: Text(_isSignUp ? "Đăng ký" : "Đăng nhập"),
                         ),
-                  
+
                   const SizedBox(height: 24),
 
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        _isSignUp ? "Already have an account? " : "New to Tiem Hoa Xinh? ",
+                        _isSignUp ? "Đã có tài khoản? " : "Chưa có tài khoản? ",
                         style: textTheme.bodyMedium,
                       ),
                       GestureDetector(
@@ -277,9 +256,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             _isSignUp = !_isSignUp;
                             _formKey.currentState?.reset();
                           });
+                          authProvider.clearError();
                         },
                         child: Text(
-                          _isSignUp ? "Sign In" : "Register Now",
+                          _isSignUp ? "Đăng nhập" : "Đăng ký ngay",
                           style: const TextStyle(
                             color: AppTheme.primaryColor,
                             fontWeight: FontWeight.bold,
@@ -293,6 +273,40 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _InlineAuthError extends StatelessWidget {
+  final String message;
+
+  const _InlineAuthError({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red.shade100),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.error_outline, color: Colors.redAccent, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: Colors.red.shade700,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

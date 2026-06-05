@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -11,6 +13,7 @@ import 'package:prm393/models/order.dart';
 import 'package:prm393/models/notification.dart';
 import 'package:prm393/models/message.dart';
 import 'package:prm393/models/store_location.dart';
+import 'package:prm393/utils/error_translator.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
@@ -20,65 +23,130 @@ class ApiService {
   // ==========================================
   // API URL CONSTANTS & CONFIGURATIONS
   // ==========================================
-  
+
   // Base URLs
-  static const String backendBaseUrl = "https://api.tiemhoaxinh.vn/api/v1";
-  static const String defaultSupabaseUrl = "https://your-project-id.supabase.co";
-  static const String defaultSupabaseAnonKey = "your-anon-key-here";
+  static String get backendBaseUrl {
+    if (kIsWeb) {
+      return "http://localhost:3636";
+    }
+    try {
+      if (Platform.isAndroid) {
+        return "http://10.0.2.2:3636";
+      }
+    } catch (_) {}
+    return "http://192.168.1.51:3636";
+  }
 
   // Auth Routes
-  static const String apiSignIn = "$backendBaseUrl/auth/signin";
-  static const String apiSignUp = "$backendBaseUrl/auth/signup";
-  static const String apiSignOut = "$backendBaseUrl/auth/signout";
-  static const String apiProfile = "$backendBaseUrl/user/profile";
+  static String get apiSignIn => "$backendBaseUrl/login";
+  static String get apiSignUp => "$backendBaseUrl/register";
+  static String get apiSignOut => "$backendBaseUrl/logout";
+  static String get apiCurrentUser => "$backendBaseUrl/api/users/me";
+  static String get apiProfile => "$backendBaseUrl/profile";
+  static String get apiProfileUpdate => "$backendBaseUrl/profile/update";
 
   // Catalog & Shopping Routes
-  static const String apiProducts = "$backendBaseUrl/products";
-  static const String apiCategories = "$backendBaseUrl/categories";
-  static const String apiCart = "$backendBaseUrl/cart";
-  static const String apiOrders = "$backendBaseUrl/orders";
-  
-  // Support, Stores & Notifications Routes
-  static const String apiNotifications = "$backendBaseUrl/notifications";
-  static const String apiMessages = "$backendBaseUrl/messages";
-  static const String apiStoreLocations = "$backendBaseUrl/stores";
+  static String get apiProducts => "$backendBaseUrl/product/all-product";
+  static String get apiCategoryProducts => "$backendBaseUrl/product/category";
+  static String get apiProductDetails => "$backendBaseUrl/products";
+  static String get apiProductSuggest => "$backendBaseUrl/api/products/suggest";
+  static String get apiAdminCategories =>
+      "$backendBaseUrl/admin/product/categories";
+
+  // Cart Routes
+  static String get apiCart => "$backendBaseUrl/cart";
+  static String get apiCartAdd => "$backendBaseUrl/cart/add";
+  static String get apiCartUpdate => "$backendBaseUrl/cart/update";
+  static String get apiCartRemove => "$backendBaseUrl/cart/remove";
+  static String get apiCartCheckout => "$backendBaseUrl/cart/checkout";
+  static String get apiPlaceOrder => "$backendBaseUrl/cart/place-order";
+
+  // Orders & Payments Routes
+  static String get apiOrders => "$backendBaseUrl/order/my-orders";
+  static String get apiOrderDetail => "$backendBaseUrl/order/detail";
+  static String get apiOrderPay => "$backendBaseUrl/order/pay";
+  static String get apiOrderCancel => "$backendBaseUrl/order/cancel";
+  static String get apiTransactionHistory =>
+      "$backendBaseUrl/transaction/history";
+  static String get apiPaymentCreate => "$backendBaseUrl/payment/create";
+
+  // Admin Routes
+  static String get apiAdminLogin => "$backendBaseUrl/admin/login";
+  static String get apiAdminDashboard => "$backendBaseUrl/admin/dashboard";
+  static String get apiAdminOrders => "$backendBaseUrl/admin/orders";
+  static String get apiAdminOrderUpdateStatus =>
+      "$backendBaseUrl/admin/orders/update-status";
+  static String get apiAdminProducts => "$backendBaseUrl/admin/products";
+  static String get apiAdminProductAdd => "$backendBaseUrl/admin/products/add";
+  static String get apiAdminProductEdit =>
+      "$backendBaseUrl/admin/products/edit";
+  static String get apiAdminProductDelete =>
+      "$backendBaseUrl/admin/products/delete";
+  static String get apiAdminProductCombo =>
+      "$backendBaseUrl/admin/products/combo";
+  static String get apiAdminProductComboAddItem =>
+      "$backendBaseUrl/admin/products/combo/add-item";
+  static String get apiAdminProductComboRemoveItem =>
+      "$backendBaseUrl/admin/products/combo/remove-item";
+  static String get apiAdminUsers => "$backendBaseUrl/admin/users";
+  static String get apiAdminUserActivate =>
+      "$backendBaseUrl/admin/users/activate";
+  static String get apiAdminUserDeactivate =>
+      "$backendBaseUrl/admin/users/deactivate";
 
   // Payment Gateway Routes
-  static const String apiVnpayCreate = "$backendBaseUrl/payment/vnpay/create";
-  static const String vnpaySandboxUrl = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
+  static const String vnpaySandboxUrl =
+      "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
 
   SupabaseClient? _supabase;
   bool get isSupabaseInitialized => _supabase != null;
+
+  String? _sessionCookie;
+
+  void _updateCookie(http.Response response) {
+    final rawCookie =
+        response.headers['set-cookie'] ?? response.headers['Set-Cookie'];
+    if (rawCookie != null) {
+      final index = rawCookie.indexOf(';');
+      _sessionCookie = (index == -1)
+          ? rawCookie
+          : rawCookie.substring(0, index);
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.setString('session_cookie', _sessionCookie!);
+      });
+    }
+  }
 
   // ==========================================
   // GENERIC HTTP CRUD UTILITIES
   // ==========================================
 
   Future<Map<String, String>> _getHeaders() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userStr = prefs.getString(_keyUser);
     final headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
-    if (userStr != null) {
-      try {
-        final userMap = jsonDecode(userStr) as Map<String, dynamic>;
-        final token = userMap['id'] as String;
-        // Prefixes standard mock authorization headers if needed
-        headers['Authorization'] = 'Bearer $token';
-      } catch (_) {}
+    if (_sessionCookie == null) {
+      final prefs = await SharedPreferences.getInstance();
+      _sessionCookie = prefs.getString('session_cookie');
+    }
+    if (_sessionCookie != null) {
+      headers['Cookie'] = _sessionCookie!;
     }
     return headers;
   }
 
+  Future<http.Response> _rawGetRequest(String url) async {
+    final headers = await _getHeaders();
+    return await http.get(Uri.parse(url), headers: headers);
+  }
+
   Future<dynamic> getRequest(String url) async {
     try {
-      final headers = await _getHeaders();
-      final response = await http.get(Uri.parse(url), headers: headers);
+      final response = await _rawGetRequest(url);
       return _processResponse(response);
     } catch (e) {
-      throw Exception("GET Request failed: $e");
+      throw Exception(_friendlyRequestError(e));
     }
   }
 
@@ -92,7 +160,17 @@ class ApiService {
       );
       return _processResponse(response);
     } catch (e) {
-      throw Exception("POST Request failed: $e");
+      throw Exception(_friendlyRequestError(e));
+    }
+  }
+
+  Future<dynamic> postEmptyRequest(String url) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.post(Uri.parse(url), headers: headers);
+      return _processResponse(response);
+    } catch (e) {
+      throw Exception(_friendlyRequestError(e));
     }
   }
 
@@ -106,7 +184,7 @@ class ApiService {
       );
       return _processResponse(response);
     } catch (e) {
-      throw Exception("PUT Request failed: $e");
+      throw Exception(_friendlyRequestError(e));
     }
   }
 
@@ -116,140 +194,66 @@ class ApiService {
       final response = await http.delete(Uri.parse(url), headers: headers);
       return _processResponse(response);
     } catch (e) {
-      throw Exception("DELETE Request failed: $e");
+      throw Exception(_friendlyRequestError(e));
     }
   }
 
   dynamic _processResponse(http.Response response) {
+    _updateCookie(response);
     if (response.statusCode >= 200 && response.statusCode < 300) {
       if (response.body.isEmpty) return null;
       return jsonDecode(response.body);
     } else {
       String msg = "HTTP Error ${response.statusCode}";
       try {
-        final err = jsonDecode(response.body) as Map<String, dynamic>;
-        msg = err['message'] ?? err['error'] ?? msg;
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          msg =
+              decoded['message'] ??
+              decoded['error'] ??
+              decoded['phoneNumberExist'] ??
+              msg;
+        } else if (decoded is List && decoded.isNotEmpty) {
+          msg = decoded.first.toString();
+        }
       } catch (_) {}
-      throw Exception(msg);
+      throw Exception(ErrorTranslator.userMessage(msg));
     }
+  }
+
+  String _friendlyRequestError(Object error) {
+    var raw = error.toString();
+    raw = raw.replaceFirst(RegExp(r'^Exception:\s*'), '');
+    raw = raw.replaceFirst(
+      RegExp(r'^(GET|POST|PUT|DELETE) Request failed:\s*'),
+      '',
+    );
+    raw = raw.replaceFirst(RegExp(r'^Exception:\s*'), '');
+    if (raw.contains('SocketException') ||
+        raw.contains('Connection refused') ||
+        raw.contains('Failed host lookup') ||
+        raw.contains('Network is unreachable')) {
+      return ErrorTranslator.userMessage(raw);
+    }
+    if (raw.contains('ClientException')) {
+      return ErrorTranslator.userMessage(raw);
+    }
+    return ErrorTranslator.userMessage(raw);
   }
 
   // Local Storage Keys
   static const String _keyUser = 'api_user';
   static const String _keyCart = 'api_cart';
-  static const String _keyOrders = 'api_orders';
   static const String _keyNotifications = 'api_notifications';
   static const String _keyMessages = 'api_messages';
 
-  // In-Memory Fallback State (initialized with mock data)
+  // In-memory state
   UserModel? _currentUser;
-  final List<Category> _mockCategories = [
-    Category(id: 1, name: "Birthday Flowers"),
-    Category(id: 2, name: "Anniversary Flowers"),
-    Category(id: 3, name: "Congratulatory Flowers"),
-    Category(id: 4, name: "Love and Romance"),
-  ];
-
-  final List<Product> _mockProducts = [
-    Product(
-      id: 101,
-      name: "Blush Romance Rose",
-      categoryId: 4,
-      imageUrl: "https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=500",
-      price: 45.0,
-      promoPrice: 39.99,
-      description: "A gorgeous arrangement of hand-picked soft pink roses styled with fresh eucalyptus leaves. Perfect for expressing love and romantic affection.",
-      careInstructions: "Trim stems at a 45-degree angle, change the water daily, and keep away from direct sunlight and heat sources.",
-      stock: 12,
-      isAvailable: true,
-      flowerType: "Rose",
-      color: "Pink",
-      size: "Medium",
-      freshness: "Premium Fresh",
-    ),
-    Product(
-      id: 102,
-      name: "Golden Sunburst Bouquet",
-      categoryId: 1,
-      imageUrl: "https://images.unsplash.com/photo-1597848212624-a19eb35e2651?w=500",
-      price: 35.0,
-      description: "Bright and cheerful sunflowers matched with yellow daisies and fresh greens. Guaranteed to bring warmth and happiness to anyone on their birthday.",
-      careInstructions: "Provide plenty of water, keep in a cool environment, and prune lower leaves that submerge in water.",
-      stock: 8,
-      isAvailable: true,
-      flowerType: "Sunflower",
-      color: "Yellow",
-      size: "Medium",
-      freshness: "Freshly Cut",
-    ),
-    Product(
-      id: 103,
-      name: "Ruby Passion Roses",
-      categoryId: 4,
-      imageUrl: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=500",
-      price: 55.0,
-      promoPrice: 49.00,
-      description: "An elegant classic bouquet of deep crimson red roses. Exquisite craftsmanship to declare passionate sentiments and timeless elegance.",
-      careInstructions: "Cut the stems under running water, add flower food to the vase, and keep in a cool draft-free spot.",
-      stock: 15,
-      isAvailable: true,
-      flowerType: "Rose",
-      color: "Red",
-      size: "Large",
-      freshness: "Premium Fresh",
-    ),
-    Product(
-      id: 104,
-      name: "Elegant Orchid Delight",
-      categoryId: 3,
-      imageUrl: "https://images.unsplash.com/photo-1525253086316-d0c936c814f8?w=500",
-      price: 65.0,
-      description: "Stunning purple orchids arranged in a premium ceramic pot. A symbol of luxury, beauty, and strength, ideal for congratulations and grand openings.",
-      careInstructions: "Water moderately once a week, allow soil to dry between waterings, and keep in indirect bright sunlight.",
-      stock: 5,
-      isAvailable: true,
-      flowerType: "Orchid",
-      color: "Purple",
-      size: "Medium",
-      freshness: "Long-lasting Blooms",
-    ),
-    Product(
-      id: 105,
-      name: "White Lily Serenade",
-      categoryId: 2,
-      imageUrl: "https://images.unsplash.com/photo-1525310072745-f49212b5ac6d?w=500",
-      price: 48.0,
-      description: "Graceful pure white lilies coupled with baby's breath. Delivers a peaceful and celebratory aura, making it excellent for anniversary celebrations.",
-      careInstructions: "Remove the pollen-bearing anthers to prevent staining and prolong blossom life. Refill clean water regularly.",
-      stock: 0,
-      isAvailable: false,
-      flowerType: "Lily",
-      color: "White",
-      size: "Large",
-      freshness: "Budding to Open",
-    ),
-    Product(
-      id: 106,
-      name: "Spring Tulip Symphony",
-      categoryId: 1,
-      imageUrl: "https://images.unsplash.com/photo-1520763185298-1b434c919102?w=500",
-      price: 40.0,
-      promoPrice: 34.99,
-      description: "A vibrant combination of colorful spring tulips. Expresses playful joy and appreciation, bound nicely with silk ribbons.",
-      careInstructions: "Keep in very cold water. Tulips continue to grow in the vase, so rotate periodically to prevent bending.",
-      stock: 20,
-      isAvailable: true,
-      flowerType: "Tulip",
-      color: "Mixed Colors",
-      size: "Medium",
-      freshness: "Freshly Harvested",
-    ),
-  ];
 
   final List<StoreLocation> _mockLocations = [
     StoreLocation(
       id: 1,
-      name: "Tiem Hoa Xinh - District 1",
+      name: "Tiệm Hoa Xnh - District 1",
       address: "456 Hai Ba Trung, District 1, Ho Chi Minh City",
       phone: "0909 789 000",
       hours: "07:00 - 20:00",
@@ -258,7 +262,7 @@ class ApiService {
     ),
     StoreLocation(
       id: 2,
-      name: "Tiem Hoa Xinh - District 3",
+      name: "Tiệm Hoa Xnh - District 3",
       address: "123 Nguyen Dinh Chieu, District 3, Ho Chi Minh City",
       phone: "0909 789 001",
       hours: "08:00 - 21:00",
@@ -269,12 +273,12 @@ class ApiService {
 
   // Initialize Supabase. If credentials fail or are empty, fall back silently.
   Future<void> initializeSupabase({String? url, String? anonKey}) async {
-    if (url != null && anonKey != null && url.isNotEmpty && anonKey.isNotEmpty) {
+    if (url != null &&
+        anonKey != null &&
+        url.isNotEmpty &&
+        anonKey.isNotEmpty) {
       try {
-        await Supabase.initialize(
-          url: url,
-          anonKey: anonKey,
-        );
+        await Supabase.initialize(url: url, anonKey: anonKey);
         _supabase = Supabase.instance.client;
       } catch (e) {
         _supabase = null;
@@ -293,114 +297,92 @@ class ApiService {
     required String phone,
     required String address,
   }) async {
-    if (isSupabaseInitialized) {
-      try {
-        final authResponse = await _supabase!.auth.signUp(
-          email: email,
-          password: password,
-          data: {
-            'name': name,
-            'phone': phone,
-            'address': address,
-          },
-        );
-
-        if (authResponse.user == null) {
-          throw Exception("Signup failed. User returned is null.");
-        }
-
-        final user = UserModel(
-          id: authResponse.user!.id,
-          email: email,
-          name: name,
-          phone: phone,
-          address: address,
-        );
-
-        // Save profile metadata in Supabase
-        await _supabase!.from('profiles').upsert(user.toJson());
-        
-        await _saveLocalUser(user);
-        return user;
-      } catch (e) {
-        // Fallback to local on error or continue with throwing if preferred
-        return _mockSignUp(email, password, name, phone, address);
-      }
-    } else {
-      return _mockSignUp(email, password, name, phone, address);
-    }
+    final response = await postRequest(apiSignUp, {
+      "fullName": name,
+      "phoneNumber": phone,
+      "address": address,
+      "email": email,
+      "password": password,
+    });
+    final user = UserModel.fromJson(response as Map<String, dynamic>);
+    await _saveLocalUser(user);
+    return user;
   }
 
   Future<UserModel> signIn({
     required String email,
     required String password,
   }) async {
-    if (isSupabaseInitialized) {
-      try {
-        final authResponse = await _supabase!.auth.signInWithPassword(
-          email: email,
-          password: password,
-        );
-
-        if (authResponse.user == null) {
-          throw Exception("Invalid credentials.");
-        }
-
-        // Fetch profile details
-        final profileData = await _supabase!
-            .from('profiles')
-            .select()
-            .eq('id', authResponse.user!.id)
-            .single();
-
-        final user = UserModel.fromJson(profileData);
-        await _saveLocalUser(user);
-        return user;
-      } catch (e) {
-        return _mockSignIn(email, password);
-      }
-    } else {
-      return _mockSignIn(email, password);
+    final response = await postRequest(apiSignIn, {
+      "email": email,
+      "password": password,
+    });
+    if (response is Map && response.containsKey('user')) {
+      final user = UserModel.fromJson(response['user'] as Map<String, dynamic>);
+      await _saveLocalUser(user);
+      return user;
     }
+    throw Exception("Invalid response format from server");
   }
 
   Future<void> signOut() async {
-    if (isSupabaseInitialized) {
-      try {
-        await _supabase!.auth.signOut();
-      } catch (_) {}
-    }
+    await getRequest(apiSignOut);
+    _sessionCookie = null;
+    _currentUser = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyUser);
-    _currentUser = null;
+    await prefs.remove('session_cookie');
   }
 
   Future<UserModel?> getCurrentUser() async {
     if (_currentUser != null) return _currentUser;
 
     final prefs = await SharedPreferences.getInstance();
-    final userStr = prefs.getString(_keyUser);
-    if (userStr != null) {
-      _currentUser = UserModel.fromJson(jsonDecode(userStr) as Map<String, dynamic>);
-      return _currentUser;
-    }
+    _sessionCookie = prefs.getString('session_cookie');
+    if (_sessionCookie == null) return null;
 
-    if (isSupabaseInitialized) {
-      final session = _supabase!.auth.currentSession;
-      if (session != null) {
-        try {
-          final profileData = await _supabase!
-              .from('profiles')
-              .select()
-              .eq('id', session.user.id)
-              .single();
-          final user = UserModel.fromJson(profileData);
-          await _saveLocalUser(user);
-          return user;
-        } catch (_) {}
+    try {
+      final response = await getRequest(apiCurrentUser);
+      if (response != null && response is Map<String, dynamic>) {
+        final user = UserModel.fromJson(response);
+        _currentUser = user;
+        await _saveLocalUser(user);
+        return user;
       }
+    } catch (_) {
+      _sessionCookie = null;
+      await prefs.remove('session_cookie');
+      await prefs.remove(_keyUser);
     }
     return null;
+  }
+
+  Future<UserModel> getProfile() async {
+    final response = await getRequest(apiProfile);
+    if (response is Map<String, dynamic>) {
+      final user = UserModel.fromJson(response);
+      await _saveLocalUser(user);
+      return user;
+    }
+    throw Exception("Invalid profile response from server");
+  }
+
+  Future<UserModel> updateProfile({
+    required String name,
+    required String phone,
+    required String address,
+  }) async {
+    final response = await postRequest(apiProfileUpdate, {
+      "fullName": name,
+      "phoneNumber": phone,
+      "address": address,
+    });
+    if (response is Map<String, dynamic>) {
+      final user = UserModel.fromJson(response);
+      await _saveLocalUser(user);
+      return user;
+    }
+    throw Exception("Invalid update profile response from server");
   }
 
   Future<void> _saveLocalUser(UserModel user) async {
@@ -409,83 +391,82 @@ class ApiService {
     await prefs.setString(_keyUser, jsonEncode(user.toJson()));
   }
 
-  Future<UserModel> _mockSignUp(String email, String password, String name, String phone, String address) async {
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (email.isEmpty || password.isEmpty || name.isEmpty) {
-      throw Exception("Please fill in all required fields.");
-    }
-    if (!email.contains('@')) {
-      throw Exception("Please enter a valid email address.");
-    }
-    if (password.length < 6) {
-      throw Exception("Password must be at least 6 characters long.");
-    }
-
-    final user = UserModel(
-      id: "mock_user_${DateTime.now().millisecondsSinceEpoch}",
-      email: email,
-      name: name,
-      phone: phone,
-      address: address,
-    );
-    await _saveLocalUser(user);
-    return user;
-  }
-
-  Future<UserModel> _mockSignIn(String email, String password) async {
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (email.isEmpty || password.isEmpty) {
-      throw Exception("Please enter both email and password.");
-    }
-    if (!email.contains('@')) {
-      throw Exception("Please enter a valid email address.");
-    }
-    if (password == "error123") {
-      throw Exception("Email or password is incorrect.");
-    }
-
-    // Default mock login credentials (accepts any email matching password '123456' for ease of testing)
-    if (password != "123456") {
-      throw Exception("Email or password is incorrect.");
-    }
-
-    final user = UserModel(
-      id: "mock_user_123",
-      email: email,
-      name: "Vinh Flowerist",
-      phone: "0909 123 456",
-      address: "123 Le Loi, District 1, Ho Chi Minh City",
-    );
-    await _saveLocalUser(user);
-    return user;
-  }
-
   // ==========================================
   // PRODUCT & CATEGORY APIs
   // ==========================================
 
   Future<List<Category>> getCategories() async {
-    if (isSupabaseInitialized) {
-      try {
-        final List<dynamic> data = await _supabase!.from('categories').select();
-        return data.map((json) => Category.fromJson(json as Map<String, dynamic>)).toList();
-      } catch (e) {
-        return _mockCategories;
-      }
+    final response = await getRequest(apiAdminCategories);
+    if (response is List) {
+      return response
+          .map((json) => Category.fromJson(json as Map<String, dynamic>))
+          .toList();
     }
-    return _mockCategories;
+    throw Exception("Invalid categories response from server");
   }
 
   Future<List<Product>> getProducts() async {
-    if (isSupabaseInitialized) {
-      try {
-        final List<dynamic> data = await _supabase!.from('products').select();
-        return data.map((json) => Product.fromJson(json as Map<String, dynamic>)).toList();
-      } catch (e) {
-        return _mockProducts;
-      }
+    final response = await getRequest(apiProducts);
+    if (response is List) {
+      return response
+          .map((json) => Product.fromJson(json as Map<String, dynamic>))
+          .toList();
     }
-    return _mockProducts;
+    throw Exception("Invalid products response from server");
+  }
+
+  Future<List<Product>> getProductsByCategory(int categoryId) async {
+    final response = await getRequest("$apiCategoryProducts/$categoryId");
+    if (response is Map && response['products'] is List) {
+      return (response['products'] as List)
+          .map((json) => Product.fromJson(json as Map<String, dynamic>))
+          .toList();
+    }
+    throw Exception("Invalid category products response from server");
+  }
+
+  Future<Product> getProductDetail(int productId) async {
+    final response = await getRequest("$apiProductDetails/$productId");
+    if (response is Map && response['product'] is Map) {
+      return Product.fromJson(response['product'] as Map<String, dynamic>);
+    }
+    throw Exception("Invalid product detail response from server");
+  }
+
+  Future<List<Product>> getRelatedProducts(int productId) async {
+    final response = await getRequest("$apiProductDetails/$productId");
+    if (response is Map && response['relatedProducts'] is List) {
+      return (response['relatedProducts'] as List)
+          .map((json) => Product.fromJson(json as Map<String, dynamic>))
+          .toList();
+    }
+    throw Exception("Invalid related products response from server");
+  }
+
+  Future<List<Product>> searchProducts(String keyword) async {
+    final uri = Uri.parse(
+      apiProducts.replaceFirst('/all-product', '/search'),
+    ).replace(queryParameters: {'keyword': keyword});
+    final response = await postEmptyRequest(uri.toString());
+    if (response is List) {
+      return response
+          .map((json) => Product.fromJson(json as Map<String, dynamic>))
+          .toList();
+    }
+    throw Exception("Invalid search response from server");
+  }
+
+  Future<List<Map<String, dynamic>>> suggestProducts(String keyword) async {
+    final uri = Uri.parse(
+      apiProductSuggest,
+    ).replace(queryParameters: {'keyword': keyword});
+    final response = await getRequest(uri.toString());
+    if (response is List) {
+      return response
+          .map((json) => Map<String, dynamic>.from(json as Map))
+          .toList();
+    }
+    throw Exception("Invalid product suggestions response from server");
   }
 
   // ==========================================
@@ -493,22 +474,60 @@ class ApiService {
   // ==========================================
 
   Future<List<CartItem>> getCartItems(List<Product> products) async {
-    final prefs = await SharedPreferences.getInstance();
-    final cartStr = prefs.getString(_keyCart);
-    if (cartStr == null) return [];
-
-    try {
-      final List<dynamic> list = jsonDecode(cartStr) as List<dynamic>;
+    final response = await getRequest(apiCart);
+    if (response is Map && response.containsKey('cart')) {
+      final List<dynamic> list = response['cart'] as List<dynamic>;
       final List<CartItem> items = [];
       for (final item in list) {
         final map = item as Map<String, dynamic>;
-        final pId = map['product_id'] as int;
-        final product = products.firstWhere((p) => p.id == pId, orElse: () => _mockProducts.first);
-        items.add(CartItem.fromJson(map, product));
+        final product = Product.fromJson(
+          map['product'] as Map<String, dynamic>,
+        );
+        items.add(
+          CartItem(
+            id: product.id,
+            cartItemId: map['cartItemId'] is int
+                ? map['cartItemId'] as int
+                : int.tryParse(map['cartItemId']?.toString() ?? ''),
+            product: product,
+            quantity: map['quantity'] is int
+                ? map['quantity'] as int
+                : int.parse(map['quantity'].toString()),
+          ),
+        );
       }
       return items;
-    } catch (_) {
-      return [];
+    }
+    throw Exception("Invalid cart response from server");
+  }
+
+  Future<void> addToCart(int productId, int quantity) async {
+    try {
+      await postRequest(apiCartAdd, {
+        "productId": productId,
+        "quantity": quantity,
+      });
+    } catch (e) {
+      throw Exception(ErrorTranslator.userMessage(e));
+    }
+  }
+
+  Future<void> updateCart(int productId, int quantity) async {
+    try {
+      await postRequest(apiCartUpdate, {
+        "productId": productId,
+        "quantity": quantity,
+      });
+    } catch (e) {
+      throw Exception(ErrorTranslator.userMessage(e));
+    }
+  }
+
+  Future<void> removeFromCart(int productId) async {
+    try {
+      await postRequest(apiCartRemove, {"productId": productId});
+    } catch (e) {
+      throw Exception(ErrorTranslator.userMessage(e));
     }
   }
 
@@ -516,16 +535,14 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     final listJson = items.map((item) => item.toJson()).toList();
     await prefs.setString(_keyCart, jsonEncode(listJson));
+  }
 
-    if (isSupabaseInitialized && _currentUser != null) {
-      try {
-        // Sync to Supabase in a background thread
-        await _supabase!.from('carts').upsert({
-          'user_id': _currentUser!.id,
-          'items': listJson,
-        });
-      } catch (_) {}
+  Future<Map<String, dynamic>> getCheckoutSummary() async {
+    final response = await getRequest(apiCartCheckout);
+    if (response is Map<String, dynamic>) {
+      return response;
     }
+    throw Exception("Invalid checkout response from server");
   }
 
   // ==========================================
@@ -533,28 +550,73 @@ class ApiService {
   // ==========================================
 
   Future<List<OrderModel>> getOrders(List<Product> products) async {
-    final prefs = await SharedPreferences.getInstance();
-    final ordersStr = prefs.getString(_keyOrders);
-    if (ordersStr == null) return [];
-
-    try {
-      final List<dynamic> list = jsonDecode(ordersStr) as List<dynamic>;
+    final response = await getRequest(apiOrders);
+    if (response is List) {
       final List<OrderModel> orders = [];
-      for (final oMap in list) {
+      for (final oMap in response) {
         final map = oMap as Map<String, dynamic>;
-        final List<dynamic> itemsJson = map['items'] as List<dynamic>;
+        final int orderId = map['orderId'] ?? map['id'] ?? 0;
         final List<OrderItem> orderItems = [];
-        for (final itemMap in itemsJson) {
-          final pId = itemMap['product_id'] as int;
-          final product = products.firstWhere((p) => p.id == pId, orElse: () => _mockProducts.first);
-          orderItems.add(OrderItem.fromJson(itemMap as Map<String, dynamic>, product));
+        final detailsResponse = await getRequest("$apiOrderDetail/$orderId");
+        if (detailsResponse is Map &&
+            detailsResponse.containsKey('orderDetails')) {
+          final detailsList = detailsResponse['orderDetails'] as List<dynamic>;
+          for (final detail in detailsList) {
+            orderItems.add(OrderItem.fromJson(detail as Map<String, dynamic>));
+          }
         }
         orders.add(OrderModel.fromJson(map, orderItems));
       }
-      return orders.reversed.toList(); // Newest first
-    } catch (_) {
-      return [];
+      return orders.reversed.toList();
     }
+    throw Exception("Invalid orders response from server");
+  }
+
+  Future<OrderModel> getOrderDetail(int orderId) async {
+    final response = await getRequest("$apiOrderDetail/$orderId");
+    if (response is Map &&
+        response['order'] is Map &&
+        response['orderDetails'] is List) {
+      final items = (response['orderDetails'] as List)
+          .map((json) => OrderItem.fromJson(json as Map<String, dynamic>))
+          .toList();
+      return OrderModel.fromJson(
+        response['order'] as Map<String, dynamic>,
+        items,
+      );
+    }
+    throw Exception("Invalid order detail response from server");
+  }
+
+  Future<String> repayOrder(int orderId) async {
+    final response = await postEmptyRequest("$apiOrderPay/$orderId");
+    if (response is Map && response['redirectUrl'] is String) {
+      final redirectUrl = response['redirectUrl'] as String;
+      final paymentResponse = await getRequest("$backendBaseUrl$redirectUrl");
+      if (paymentResponse is Map && paymentResponse['paymentUrl'] is String) {
+        return paymentResponse['paymentUrl'] as String;
+      }
+    }
+    throw Exception("Invalid repay response from server");
+  }
+
+  Future<void> cancelOrder(int orderId) async {
+    await postEmptyRequest("$apiOrderCancel/$orderId");
+  }
+
+  Future<List<OrderModel>> getTransactionHistory() async {
+    final response = await getRequest(apiTransactionHistory);
+    if (response is List) {
+      return response
+          .map(
+            (json) =>
+                OrderModel.fromJson(json as Map<String, dynamic>, const []),
+          )
+          .toList()
+          .reversed
+          .toList();
+    }
+    throw Exception("Invalid transaction history response from server");
   }
 
   // ==========================================
@@ -566,24 +628,16 @@ class ApiService {
     required String orderId,
     String ipAddress = '127.0.0.1',
   }) async {
-    await Future.delayed(const Duration(milliseconds: 400));
-    
-    // In actual Supabase/REST backend:
-    // If Supabase is initialized, we trigger an edge function
-    if (isSupabaseInitialized) {
-      try {
-        final response = await _supabase!.functions.invoke('vnpay-create-payment', body: {
-          'amount': amount,
-          'orderId': orderId,
-          'ipAddress': ipAddress,
-        });
-        final data = jsonDecode(response.data as String) as Map<String, dynamic>;
-        return data['paymentUrl'] as String;
-      } catch (_) {}
-    }
+    try {
+      final response = await getRequest(
+        "$apiPaymentCreate?orderId=$orderId&amount=${amount.toInt()}",
+      );
+      if (response is Map && response.containsKey('paymentUrl')) {
+        return response['paymentUrl'] as String;
+      }
+    } catch (_) {}
 
-    // Local sandbox simulation URL
-    final amountInVnd = (amount * 25000).toInt(); // Conversion rate of 1 USD = 25,000 VND
+    final amountInVnd = amount.toInt();
     return "$vnpaySandboxUrl"
         "?vnp_Amount=$amountInVnd"
         "&vnp_Command=pay"
@@ -593,7 +647,7 @@ class ApiService {
         "&vnp_Locale=vn"
         "&vnp_OrderInfo=Thanh+toan+don+hang+$orderId"
         "&vnp_OrderType=other"
-        "&vnp_ReturnUrl=http%3A%2F%2Flocalhost%3A8080%2Fvnpay_return"
+        "&vnp_ReturnUrl=http%3A%2F%2F192.168.1.51%3A3636%2Fpayment%2FvnpayReturn"
         "&vnp_TmnCode=DEMO0001"
         "&vnp_TxnRef=$orderId"
         "&vnp_Version=2.1.0";
@@ -608,65 +662,194 @@ class ApiService {
     required List<CartItem> cartItems,
     String status = "Confirmed",
   }) async {
-    await Future.delayed(const Duration(milliseconds: 800));
+    // Place the order — the backend links the order to the current session user.
+    // paymentMethod expected by backend: "COD" or "VNPay"
+    final response = await postRequest(apiPlaceOrder, {
+      "paymentMethod": paymentMethod == "VNPAY" ? "VNPay" : "COD",
+    });
 
-    final newOrderId = DateTime.now().millisecondsSinceEpoch;
-    final orderItems = cartItems.map((c) => OrderItem(
-      id: newOrderId + c.product.id,
-      product: c.product,
-      quantity: c.quantity,
-      price: c.product.promoPrice ?? c.product.price,
-    )).toList();
-
-    final order = OrderModel(
-      id: newOrderId,
-      totalAmount: totalAmount,
-      recipientName: recipientName,
-      recipientPhone: recipientPhone,
-      shippingAddress: shippingAddress,
-      paymentMethod: paymentMethod,
-      status: status,
-      createdAt: DateTime.now(),
-      items: orderItems,
-    );
-
-    // Save locally
-    final prefs = await SharedPreferences.getInstance();
-    final orders = await getOrders(_mockProducts);
-    orders.add(order);
-
-    final ordersJson = orders.map((o) {
-      final map = o.toJson();
-      map['items'] = o.items.map((i) => i.toJson()).toList();
-      return map;
-    }).toList();
-
-    await prefs.setString(_keyOrders, jsonEncode(ordersJson));
-    await prefs.remove(_keyCart); // Clear local cart
-
-    if (isSupabaseInitialized && _currentUser != null) {
-      try {
-        final orderMap = order.toJson();
-        orderMap['user_id'] = _currentUser!.id;
-        await _supabase!.from('orders').insert(orderMap);
-
-        final itemsMap = order.items.map((i) {
-          final iMap = i.toJson();
-          iMap['order_id'] = order.id;
-          return iMap;
-        }).toList();
-        await _supabase!.from('order_items').insert(itemsMap);
-        await _supabase!.from('carts').delete().eq('user_id', _currentUser!.id);
-      } catch (_) {}
+    if (response is! Map || response['order'] is! Map) {
+      throw Exception("Invalid place order response from server");
     }
 
-    // Trigger confirmation notification
+    final orderItems = cartItems
+        .map(
+          (c) => OrderItem(
+            id: c.product.id,
+            product: c.product,
+            quantity: c.quantity,
+            price: c.product.promoPrice ?? c.product.price,
+          ),
+        )
+        .toList();
+
+    final order = OrderModel.fromJson(
+      response['order'] as Map<String, dynamic>,
+      orderItems,
+    );
+
     await addNotification(
-      title: "Order Confirmed",
-      content: "Thank you for shopping. Your order of flower boutique (ID: $newOrderId) is confirmed and prepared for shipping. Payment status: $status.",
+      title: "Order Placed",
+      content:
+          "Thank you for shopping. Your order #${order.id} has been placed. Payment: ${order.paymentMethod}.",
     );
 
     return order;
+  }
+
+  // ==========================================
+  // ADMIN APIs
+  // ==========================================
+
+  Future<Map<String, dynamic>> adminLogin({
+    required String email,
+    required String password,
+  }) async {
+    final response = await postRequest(apiAdminLogin, {
+      'email': email,
+      'password': password,
+    });
+    if (response is Map<String, dynamic>) return response;
+    throw Exception("Invalid admin login response from server");
+  }
+
+  Future<Map<String, dynamic>> getAdminDashboard() async {
+    final response = await getRequest(apiAdminDashboard);
+    if (response is Map<String, dynamic>) return response;
+    throw Exception("Invalid admin dashboard response from server");
+  }
+
+  Future<Map<String, dynamic>> getAdminOrders({
+    String? email,
+    String? status,
+    String? startDate,
+    String? endDate,
+    int pageNo = 1,
+  }) async {
+    final query = <String, String>{'pageNo': pageNo.toString()};
+    if (email != null && email.isNotEmpty) query['email'] = email;
+    if (status != null && status.isNotEmpty) query['status'] = status;
+    if (startDate != null && startDate.isNotEmpty)
+      query['startDate'] = startDate;
+    if (endDate != null && endDate.isNotEmpty) query['endDate'] = endDate;
+    final response = await getRequest(
+      Uri.parse(apiAdminOrders).replace(queryParameters: query).toString(),
+    );
+    if (response is Map<String, dynamic>) return response;
+    throw Exception("Invalid admin orders response from server");
+  }
+
+  Future<Map<String, dynamic>> updateAdminOrderStatus({
+    required int orderId,
+    required String status,
+  }) async {
+    final uri = Uri.parse(apiAdminOrderUpdateStatus).replace(
+      queryParameters: {'orderId': orderId.toString(), 'status': status},
+    );
+    final response = await postEmptyRequest(uri.toString());
+    if (response is Map<String, dynamic>) return response;
+    throw Exception("Invalid update order status response from server");
+  }
+
+  Future<Map<String, dynamic>> getAdminProducts({
+    int pageNo = 1,
+    String? keyword,
+  }) async {
+    final query = <String, String>{'pageNo': pageNo.toString()};
+    if (keyword != null && keyword.isNotEmpty) query['keyword'] = keyword;
+    final response = await getRequest(
+      Uri.parse(apiAdminProducts).replace(queryParameters: query).toString(),
+    );
+    if (response is Map<String, dynamic>) return response;
+    throw Exception("Invalid admin products response from server");
+  }
+
+  Future<Product> addAdminProduct(Product product) async {
+    final response = await postRequest(
+      apiAdminProductAdd,
+      product.toBackendJson(),
+    );
+    if (response is Map<String, dynamic>) return Product.fromJson(response);
+    throw Exception("Invalid add product response from server");
+  }
+
+  Future<Product> editAdminProduct(Product product) async {
+    final response = await postRequest(
+      apiAdminProductEdit,
+      product.toBackendJson(),
+    );
+    if (response is Map<String, dynamic>) return Product.fromJson(response);
+    throw Exception("Invalid edit product response from server");
+  }
+
+  Future<void> deleteAdminProduct(int productId) async {
+    await deleteRequest("$apiAdminProductDelete/$productId");
+  }
+
+  Future<List<Product>> getAdminComboProducts() async {
+    final response = await getRequest(apiAdminProductCombo);
+    if (response is List) {
+      return response
+          .map((json) => Product.fromJson(json as Map<String, dynamic>))
+          .toList();
+    }
+    throw Exception("Invalid combo products response from server");
+  }
+
+  Future<Map<String, dynamic>> getAdminComboItems(int comboId) async {
+    final response = await getRequest("$apiAdminProductComboAddItem/$comboId");
+    if (response is Map<String, dynamic>) return response;
+    throw Exception("Invalid combo items response from server");
+  }
+
+  Future<List<dynamic>> saveAdminComboItem({
+    required int comboId,
+    required int productId,
+    required int quantity,
+  }) async {
+    final uri = Uri.parse(apiAdminProductComboAddItem).replace(
+      queryParameters: {
+        'comboId': comboId.toString(),
+        'productId': productId.toString(),
+        'quantity': quantity.toString(),
+      },
+    );
+    final response = await postEmptyRequest(uri.toString());
+    if (response is List) return response;
+    throw Exception("Invalid save combo item response from server");
+  }
+
+  Future<List<dynamic>> removeAdminComboItem(int comboItemId) async {
+    final response = await deleteRequest(
+      "$apiAdminProductComboRemoveItem/$comboItemId",
+    );
+    if (response is List) return response;
+    throw Exception("Invalid remove combo item response from server");
+  }
+
+  Future<Map<String, dynamic>> getAdminUsers({
+    int pageNo = 1,
+    String? search,
+  }) async {
+    final query = <String, String>{'pageNo': pageNo.toString()};
+    if (search != null && search.isNotEmpty) query['search'] = search;
+    final response = await getRequest(
+      Uri.parse(apiAdminUsers).replace(queryParameters: query).toString(),
+    );
+    if (response is Map<String, dynamic>) return response;
+    throw Exception("Invalid admin users response from server");
+  }
+
+  Future<UserModel> activateAdminUser(int userId) async {
+    final response = await postEmptyRequest("$apiAdminUserActivate/$userId");
+    if (response is Map<String, dynamic>) return UserModel.fromJson(response);
+    throw Exception("Invalid activate user response from server");
+  }
+
+  Future<UserModel> deactivateAdminUser(int userId) async {
+    final response = await postEmptyRequest("$apiAdminUserDeactivate/$userId");
+    if (response is Map<String, dynamic>) return UserModel.fromJson(response);
+    throw Exception("Invalid deactivate user response from server");
   }
 
   // ==========================================
@@ -676,21 +859,23 @@ class ApiService {
   Future<List<NotificationModel>> getNotifications() async {
     final prefs = await SharedPreferences.getInstance();
     final notifStr = prefs.getString(_keyNotifications);
-    
+
     if (notifStr == null) {
       // Seed default notifications
       final defaultNotifs = [
         NotificationModel(
           id: 1,
-          title: "Welcome to Tiem Hoa Xinh",
-          content: "Get fresh blossoms delivered to your door. Log in and discover premium floral catalogs.",
+          title: "Welcome to Tiệm Hoa Xnh",
+          content:
+              "Get fresh blossoms delivered to your door. Log in and discover premium floral catalogs.",
           timestamp: DateTime.now().subtract(const Duration(hours: 4)),
           isRead: false,
         ),
         NotificationModel(
           id: 2,
           title: "Special Anniversary Promo",
-          content: "Enjoy up to 20% discount on all elegant rose bouquets this weekend.",
+          content:
+              "Enjoy up to 20% discount on all elegant rose bouquets this weekend.",
           timestamp: DateTime.now().subtract(const Duration(days: 1)),
           isRead: true,
         ),
@@ -701,7 +886,11 @@ class ApiService {
 
     try {
       final List<dynamic> list = jsonDecode(notifStr) as List<dynamic>;
-      return list.map((json) => NotificationModel.fromJson(json as Map<String, dynamic>)).toList();
+      return list
+          .map(
+            (json) => NotificationModel.fromJson(json as Map<String, dynamic>),
+          )
+          .toList();
     } catch (_) {
       return [];
     }
@@ -713,16 +902,24 @@ class ApiService {
     await prefs.setString(_keyNotifications, jsonEncode(notifJson));
   }
 
-  Future<void> addNotification({required String title, required String content}) async {
+  Future<void> addNotification({
+    required String title,
+    required String content,
+  }) async {
     final list = await getNotifications();
-    final newId = list.isEmpty ? 1 : list.map((n) => n.id).reduce((a, b) => a > b ? a : b) + 1;
-    list.insert(0, NotificationModel(
-      id: newId,
-      title: title,
-      content: content,
-      timestamp: DateTime.now(),
-      isRead: false,
-    ));
+    final newId = list.isEmpty
+        ? 1
+        : list.map((n) => n.id).reduce((a, b) => a > b ? a : b) + 1;
+    list.insert(
+      0,
+      NotificationModel(
+        id: newId,
+        title: title,
+        content: content,
+        timestamp: DateTime.now(),
+        isRead: false,
+      ),
+    );
     await saveNotifications(list);
   }
 
@@ -739,10 +936,11 @@ class ApiService {
       final defaultMsgs = [
         MessageModel(
           id: 1,
-          content: "Welcome to Tiem Hoa Xinh! Let us know if you have questions regarding flower care, delivery options, or boutique options. We are here to assist.",
+          content:
+              "Welcome to Tiệm Hoa Xnh! Let us know if you have questions regarding flower care, delivery options, or boutique options. We are here to assist.",
           sender: "store",
           timestamp: DateTime.now().subtract(const Duration(minutes: 5)),
-        )
+        ),
       ];
       await saveMessages(defaultMsgs);
       return defaultMsgs;
@@ -750,7 +948,9 @@ class ApiService {
 
     try {
       final List<dynamic> list = jsonDecode(msgStr) as List<dynamic>;
-      return list.map((json) => MessageModel.fromJson(json as Map<String, dynamic>)).toList();
+      return list
+          .map((json) => MessageModel.fromJson(json as Map<String, dynamic>))
+          .toList();
     } catch (_) {
       return [];
     }
@@ -768,8 +968,10 @@ class ApiService {
     }
 
     final list = await getMessages();
-    final newId = list.isEmpty ? 1 : list.map((m) => m.id).reduce((a, b) => a > b ? a : b) + 1;
-    
+    final newId = list.isEmpty
+        ? 1
+        : list.map((m) => m.id).reduce((a, b) => a > b ? a : b) + 1;
+
     final message = MessageModel(
       id: newId,
       content: content,
@@ -795,18 +997,33 @@ class ApiService {
   // Simulates a store representative response based on user input terms.
   Future<MessageModel?> getMockAutoReply(String userMessage) async {
     await Future.delayed(const Duration(milliseconds: 1000));
-    
-    final normalized = userMessage.toLowerCase();
-    String reply = "Thank you for reaching out. We have received your query and will reply shortly.";
 
-    if (normalized.contains("giá") || normalized.contains("price") || normalized.contains("mua")) {
-      reply = "Our flower bouquets range from 35.00 to 65.00. We currently have sales on Blush Romance and Spring Tulip Symphony! Check our Home Page for prices.";
-    } else if (normalized.contains("ship") || normalized.contains("giao") || normalized.contains("delivery")) {
-      reply = "We offer same-day delivery across Ho Chi Minh City for orders placed before 16:00. Standard shipping is 5.00, and free for orders over 100.00.";
-    } else if (normalized.contains("bảo hành") || normalized.contains("chăm sóc") || normalized.contains("care") || normalized.contains("tươi")) {
-      reply = "To keep your flowers fresh: trim stems at 45 degrees, place in cold fresh water with flower food, and keep away from heat/direct sunlight.";
-    } else if (normalized.contains("địa chỉ") || normalized.contains("map") || normalized.contains("address") || normalized.contains("ở đâu")) {
-      reply = "Our main store is located at 456 Hai Ba Trung, District 1, Ho Chi Minh City. You can check the Map section for working hours and directions.";
+    final normalized = userMessage.toLowerCase();
+    String reply =
+        "Thank you for reaching out. We have received your query and will reply shortly.";
+
+    if (normalized.contains("giá") ||
+        normalized.contains("price") ||
+        normalized.contains("mua")) {
+      reply =
+          "Our flower bouquets range from 35.00 to 65.00. We currently have sales on Blush Romance and Spring Tulip Symphony! Check our Home Page for prices.";
+    } else if (normalized.contains("ship") ||
+        normalized.contains("giao") ||
+        normalized.contains("delivery")) {
+      reply =
+          "We offer same-day delivery across Ho Chi Minh City for orders placed before 16:00. Standard shipping is 5.00, and free for orders over 100.00.";
+    } else if (normalized.contains("bảo hành") ||
+        normalized.contains("chăm sóc") ||
+        normalized.contains("care") ||
+        normalized.contains("tươi")) {
+      reply =
+          "To keep your flowers fresh: trim stems at 45 degrees, place in cold fresh water with flower food, and keep away from heat/direct sunlight.";
+    } else if (normalized.contains("địa chỉ") ||
+        normalized.contains("map") ||
+        normalized.contains("address") ||
+        normalized.contains("ở đâu")) {
+      reply =
+          "Our main store is located at 456 Hai Ba Trung, District 1, Ho Chi Minh City. You can check the Map section for working hours and directions.";
     }
 
     return await sendMessage(reply, "store");
@@ -819,8 +1036,12 @@ class ApiService {
   Future<List<StoreLocation>> getStoreLocations() async {
     if (isSupabaseInitialized) {
       try {
-        final List<dynamic> data = await _supabase!.from('store_locations').select();
-        return data.map((json) => StoreLocation.fromJson(json as Map<String, dynamic>)).toList();
+        final List<dynamic> data = await _supabase!
+            .from('store_locations')
+            .select();
+        return data
+            .map((json) => StoreLocation.fromJson(json as Map<String, dynamic>))
+            .toList();
       } catch (_) {
         return _mockLocations;
       }

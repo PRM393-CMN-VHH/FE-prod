@@ -13,12 +13,21 @@ class OrderItem {
     required this.price,
   });
 
-  factory OrderItem.fromJson(Map<String, dynamic> json, Product product) {
+  factory OrderItem.fromJson(Map<String, dynamic> json, [Product? fallbackProduct]) {
+    final int itemDetailId = json['orderDetailId'] ?? json['id'] ?? 0;
+    Product prod;
+    if (json['product'] != null && json['product'] is Map) {
+      prod = Product.fromJson(json['product'] as Map<String, dynamic>);
+    } else if (fallbackProduct != null) {
+      prod = fallbackProduct;
+    } else {
+      throw Exception("Product data is missing in OrderItem payload");
+    }
     return OrderItem(
-      id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
-      product: product,
-      quantity: json['quantity'] is int ? json['quantity'] : int.parse(json['quantity'].toString()),
-      price: (json['price'] as num).toDouble(),
+      id: itemDetailId,
+      product: prod,
+      quantity: json['quantity'] is int ? json['quantity'] : int.parse((json['quantity'] ?? 0).toString()),
+      price: (json['price'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
@@ -40,6 +49,7 @@ class OrderModel {
   final String shippingAddress;
   final String paymentMethod;
   final String status;
+  final String paymentStatus;
   final DateTime createdAt;
   final List<OrderItem> items;
 
@@ -51,22 +61,50 @@ class OrderModel {
     required this.shippingAddress,
     required this.paymentMethod,
     required this.status,
+    this.paymentStatus = '',
     required this.createdAt,
     required this.items,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> json, List<OrderItem> items) {
+    final int orderId = json['orderId'] ?? json['id'] ?? 0;
+    final double amt = (json['totalPrice'] as num? ?? json['total_amount'] as num? ?? 0).toDouble();
+    
+    // Fallback recipient from user object
+    String name = json['recipient_name'] ?? '';
+    String phone = json['recipient_phone'] ?? '';
+    String addr = json['shipping_address'] ?? '';
+    
+    if (json['user'] != null && json['user'] is Map) {
+      final userMap = json['user'] as Map<String, dynamic>;
+      if (name.isEmpty) name = userMap['fullName'] ?? '';
+      if (phone.isEmpty) phone = userMap['phoneNumber'] ?? '';
+      if (addr.isEmpty) addr = userMap['address'] ?? '';
+    }
+
+    final String pMethod = json['paymentMethod'] ?? json['payment_method'] ?? 'COD';
+    final String ordStatus = json['orderStatus'] ?? json['status'] ?? 'Pending';
+    final String payStatus = json['paymentStatus'] ?? json['payment_status'] ?? '';
+    
+    DateTime cAt = DateTime.now();
+    try {
+      if (json['createdAt'] != null) {
+        cAt = DateTime.parse(json['createdAt'] as String);
+      } else if (json['created_at'] != null) {
+        cAt = DateTime.parse(json['created_at'] as String);
+      }
+    } catch (_) {}
+
     return OrderModel(
-      id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
-      totalAmount: (json['total_amount'] as num).toDouble(),
-      recipientName: json['recipient_name'] as String? ?? '',
-      recipientPhone: json['recipient_phone'] as String? ?? '',
-      shippingAddress: json['shipping_address'] as String? ?? '',
-      paymentMethod: json['payment_method'] as String? ?? 'COD',
-      status: json['status'] as String? ?? 'Pending',
-      createdAt: json['created_at'] != null 
-          ? DateTime.parse(json['created_at'] as String) 
-          : DateTime.now(),
+      id: orderId,
+      totalAmount: amt,
+      recipientName: name,
+      recipientPhone: phone,
+      shippingAddress: addr,
+      paymentMethod: pMethod,
+      status: ordStatus,
+      paymentStatus: payStatus,
+      createdAt: cAt,
       items: items,
     );
   }
@@ -80,6 +118,7 @@ class OrderModel {
       'shipping_address': shippingAddress,
       'payment_method': paymentMethod,
       'status': status,
+      'payment_status': paymentStatus,
       'created_at': createdAt.toIso8601String(),
     };
   }

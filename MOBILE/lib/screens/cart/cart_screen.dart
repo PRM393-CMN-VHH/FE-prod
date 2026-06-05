@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:prm393/providers/cart_provider.dart';
 import 'package:prm393/screens/cart/checkout_screen.dart';
 import 'package:prm393/theme/app_theme.dart';
+import 'package:prm393/utils/currency_formatter.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
@@ -25,12 +26,12 @@ class CartScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              "Your cart is empty",
+              "Giỏ hàng đang trống",
               style: textTheme.headlineSmall?.copyWith(color: AppTheme.textSecondaryColor),
             ),
             const SizedBox(height: 8),
             const Text(
-              "Browse our floral collection to add blossoms here",
+              "Hãy chọn hoa bạn thích để thêm vào giỏ",
               style: TextStyle(color: AppTheme.textSecondaryColor),
             ),
           ],
@@ -93,7 +94,7 @@ class CartScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              "\$${itemPrice.toStringAsFixed(2)} each",
+                              "${formatVnd(itemPrice)} / sản phẩm",
                               style: const TextStyle(
                                 fontSize: 13,
                                 color: AppTheme.textSecondaryColor,
@@ -101,7 +102,7 @@ class CartScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              "\$${item.totalPrice.toStringAsFixed(2)}",
+                              formatVnd(item.totalPrice),
                               style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.bold,
@@ -118,8 +119,16 @@ class CartScreen extends StatelessWidget {
                         children: [
                           IconButton(
                             icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
-                            onPressed: () {
-                              cartProvider.removeFromCart(item.id);
+                            onPressed: () async {
+                              final ok = await cartProvider.removeFromCart(item.id);
+                              if (!ok && context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(cartProvider.errorMessage ?? "Không thể xóa sản phẩm. Vui lòng thử lại."),
+                                    backgroundColor: Colors.redAccent,
+                                  ),
+                                );
+                              }
                             },
                           ),
                           Container(
@@ -133,8 +142,16 @@ class CartScreen extends StatelessWidget {
                                   constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                                   padding: EdgeInsets.zero,
                                   icon: const Icon(Icons.remove, size: 14),
-                                  onPressed: () {
-                                    cartProvider.updateQuantity(item.id, item.quantity - 1);
+                                  onPressed: () async {
+                                    final ok = await cartProvider.updateQuantity(item.id, item.quantity - 1);
+                                    if (!ok && context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(cartProvider.errorMessage ?? "Không thể cập nhật số lượng. Vui lòng thử lại."),
+                                          backgroundColor: Colors.redAccent,
+                                        ),
+                                      );
+                                    }
                                   },
                                 ),
                                 Text(
@@ -145,9 +162,17 @@ class CartScreen extends StatelessWidget {
                                   constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                                   padding: EdgeInsets.zero,
                                   icon: const Icon(Icons.add, size: 14),
-                                  onPressed: () {
+                                  onPressed: () async {
                                     if (item.quantity < product.stock) {
-                                      cartProvider.updateQuantity(item.id, item.quantity + 1);
+                                      final ok = await cartProvider.updateQuantity(item.id, item.quantity + 1);
+                                      if (!ok && context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(cartProvider.errorMessage ?? "Không thể cập nhật số lượng. Vui lòng thử lại."),
+                                            backgroundColor: Colors.redAccent,
+                                          ),
+                                        );
+                                      }
                                     } else {
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         const SnackBar(
@@ -193,17 +218,17 @@ class CartScreen extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text("Subtotal", style: TextStyle(color: AppTheme.textSecondaryColor)),
-                    Text("\$${cartProvider.subtotalAmount.toStringAsFixed(2)}", style: textTheme.titleMedium),
+                    const Text("Tạm tính", style: TextStyle(color: AppTheme.textSecondaryColor)),
+                    Text(formatVnd(cartProvider.subtotalAmount), style: textTheme.titleMedium),
                   ],
                 ),
                 const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text("Shipping Delivery", style: TextStyle(color: AppTheme.textSecondaryColor)),
+                    const Text("Phí giao hàng", style: TextStyle(color: AppTheme.textSecondaryColor)),
                     Text(
-                      cartProvider.shippingFee == 0.0 ? "FREE" : "\$${cartProvider.shippingFee.toStringAsFixed(2)}",
+                      cartProvider.shippingFee == 0.0 ? "Miễn phí" : formatVnd(cartProvider.shippingFee),
                       style: TextStyle(
                         color: cartProvider.shippingFee == 0.0 ? Colors.green : AppTheme.textPrimaryColor,
                         fontWeight: cartProvider.shippingFee == 0.0 ? FontWeight.bold : FontWeight.normal,
@@ -217,9 +242,9 @@ class CartScreen extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text("Total Payment", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    const Text("Tổng thanh toán", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     Text(
-                      "\$${cartProvider.totalAmount.toStringAsFixed(2)}",
+                      formatVnd(cartProvider.totalAmount),
                       style: textTheme.titleLarge?.copyWith(
                         color: AppTheme.primaryColor,
                         fontWeight: FontWeight.bold,
@@ -237,7 +262,7 @@ class CartScreen extends StatelessWidget {
                       ),
                     );
                   },
-                  child: const Text("Proceed to Checkout"),
+                  child: const Text("Tiến hành thanh toán"),
                 ),
               ],
             ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:prm393/utils/currency_formatter.dart';
 
 class VnpayPaymentScreen extends StatefulWidget {
   final double amount;
@@ -90,7 +91,6 @@ class _VnpayPaymentScreenState extends State<VnpayPaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final amountInVnd = (widget.amount * 25000).toInt();
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
@@ -151,25 +151,40 @@ class _VnpayPaymentScreenState extends State<VnpayPaymentScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text("Merchant", style: TextStyle(color: Colors.grey)),
-                          const Text("Tiem Hoa Xinh Store", style: TextStyle(fontWeight: FontWeight.bold)),
+                          const Text(
+                            "Merchant",
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                          const Text(
+                            "Tiệm Hoa Xnh Store",
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 8),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text("Order Code", style: TextStyle(color: Colors.grey)),
-                          Text(widget.orderId, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          const Text(
+                            "Order Code",
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                          Text(
+                            widget.orderId,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                         ],
                       ),
                       const Divider(height: 24),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text("Payment Amount", style: TextStyle(fontWeight: FontWeight.bold)),
+                          const Text(
+                            "Số tiền thanh toán",
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                           Text(
-                            "$amountInVnd VND",
+                            formatVnd(widget.amount),
                             style: const TextStyle(
                               color: Color(0xFF0F3D8D),
                               fontWeight: FontWeight.bold,
@@ -220,7 +235,7 @@ class _VnpayPaymentScreenState extends State<VnpayPaymentScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              
+
               // Auto fill Helper Button
               ElevatedButton.icon(
                 onPressed: _autofillSandbox,
@@ -236,7 +251,7 @@ class _VnpayPaymentScreenState extends State<VnpayPaymentScreen> {
                 icon: const Icon(Icons.auto_awesome, size: 16),
                 label: const Text("AUTO FILL SANDBOX CARD"),
               ),
-              
+
               const SizedBox(height: 20),
 
               TextFormField(
@@ -248,8 +263,10 @@ class _VnpayPaymentScreenState extends State<VnpayPaymentScreen> {
                   prefixIcon: Icon(Icons.credit_card),
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) return "Enter card number";
-                  if (value.replaceAll(' ', '').length < 16) return "Invalid format";
+                  if (value == null || value.isEmpty)
+                    return "Enter card number";
+                  if (value.replaceAll(' ', '').length < 16)
+                    return "Invalid format";
                   return null;
                 },
               ),
@@ -264,7 +281,8 @@ class _VnpayPaymentScreenState extends State<VnpayPaymentScreen> {
                   prefixIcon: Icon(Icons.person),
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) return "Enter holder name";
+                  if (value == null || value.isEmpty)
+                    return "Enter holder name";
                   return null;
                 },
               ),
@@ -283,12 +301,14 @@ class _VnpayPaymentScreenState extends State<VnpayPaymentScreen> {
                   return null;
                 },
               ),
-              
+
               const SizedBox(height: 24),
 
               _isConnecting
                   ? const Center(
-                      child: CircularProgressIndicator(color: Color(0xFF0F3D8D)),
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF0F3D8D),
+                      ),
                     )
                   : ElevatedButton(
                       onPressed: _submitCard,
@@ -358,7 +378,11 @@ class _VnpayPaymentScreenState extends State<VnpayPaymentScreen> {
               controller: _otpController,
               keyboardType: TextInputType.number,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 20, letterSpacing: 6, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontSize: 20,
+                letterSpacing: 6,
+                fontWeight: FontWeight.bold,
+              ),
               decoration: const InputDecoration(
                 hintText: "123456",
                 contentPadding: EdgeInsets.symmetric(vertical: 16),
@@ -444,7 +468,7 @@ class _VnpayPaymentScreenState extends State<VnpayPaymentScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              "VNPAY has successfully authenticated and authorized your transaction. Redirecting back to Tiem Hoa Xinh...",
+              "VNPAY has successfully authenticated and authorized your transaction. Redirecting back to Tiệm Hoa Xnh...",
               style: TextStyle(color: Colors.grey, fontSize: 13),
               textAlign: TextAlign.center,
             ),
