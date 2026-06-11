@@ -5,6 +5,7 @@ import 'package:prm393/providers/cart_provider.dart';
 import 'package:prm393/providers/notification_provider.dart';
 import 'package:prm393/providers/product_provider.dart';
 import 'package:prm393/providers/chat_provider.dart';
+import 'package:prm393/screens/admin/admin_screen.dart';
 import 'package:prm393/screens/product/product_list_screen.dart';
 import 'package:prm393/screens/cart/cart_order_screen.dart';
 import 'package:prm393/screens/profile/profile_screen.dart';
@@ -45,16 +46,19 @@ class _MainNavigationState extends State<MainNavigation> {
     final cartProvider = Provider.of<CartProvider>(context);
     final notificationProvider = Provider.of<NotificationProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
+    final isAdmin = authProvider.user?.isAdmin ?? false;
     final screens = <Widget>[
-      const ProductListScreen(),
-      const CartOrderScreen(),
+      if (!isAdmin) const ProductListScreen(),
+      if (!isAdmin) const CartOrderScreen(),
+      if (isAdmin) const AdminScreen(),
       const ProfileScreen(),
       const MapScreen(),
       const SupportScreen(),
     ];
     final titles = <String>[
-      "Tiệm Hoa Xinh",
-      "Giỏ & Đơn hàng",
+      if (!isAdmin) "Tiệm Hoa Xinh",
+      if (!isAdmin) "Giỏ & Đơn hàng",
+      if (isAdmin) "Quản trị",
       "Hồ sơ",
       "Cửa hàng",
       "Chat & Tin",
@@ -123,24 +127,32 @@ class _MainNavigationState extends State<MainNavigation> {
           });
         },
         items: [
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: "Trang chủ",
-          ),
-          BottomNavigationBarItem(
-            icon: Badge(
-              label: Text(cartProvider.totalItemCount.toString()),
-              isLabelVisible: cartProvider.totalItemCount > 0,
-              child: const Icon(Icons.shopping_cart_outlined),
+          if (!isAdmin)
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.home_outlined),
+              activeIcon: Icon(Icons.home),
+              label: "Trang chủ",
             ),
-            activeIcon: Badge(
-              label: Text(cartProvider.totalItemCount.toString()),
-              isLabelVisible: cartProvider.totalItemCount > 0,
-              child: const Icon(Icons.shopping_cart),
+          if (!isAdmin)
+            BottomNavigationBarItem(
+              icon: Badge(
+                label: Text(cartProvider.totalItemCount.toString()),
+                isLabelVisible: cartProvider.totalItemCount > 0,
+                child: const Icon(Icons.shopping_cart_outlined),
+              ),
+              activeIcon: Badge(
+                label: Text(cartProvider.totalItemCount.toString()),
+                isLabelVisible: cartProvider.totalItemCount > 0,
+                child: const Icon(Icons.shopping_cart),
+              ),
+              label: "Giỏ/Đơn",
             ),
-            label: "Giỏ/Đơn",
-          ),
+          if (isAdmin)
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.admin_panel_settings_outlined),
+              activeIcon: Icon(Icons.admin_panel_settings),
+              label: "Admin",
+            ),
           const BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
             activeIcon: Icon(Icons.person),
