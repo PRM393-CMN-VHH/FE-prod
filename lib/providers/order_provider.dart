@@ -3,15 +3,18 @@ import 'package:prm393/models/cart_item.dart';
 import 'package:prm393/models/order.dart';
 import 'package:prm393/models/product.dart';
 import 'package:prm393/services/api_service.dart';
+import 'package:prm393/utils/error_translator.dart';
 
 class OrderProvider extends ChangeNotifier {
   final ApiService _apiService = ApiService();
 
   List<OrderModel> _orders = [];
+  List<OrderModel> _paidTransactions = [];
   bool _isLoading = false;
   String? _errorMessage;
 
   List<OrderModel> get orders => _orders;
+  List<OrderModel> get paidTransactions => _paidTransactions;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
@@ -23,7 +26,7 @@ class OrderProvider extends ChangeNotifier {
     try {
       _orders = await _apiService.getOrders(products);
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = ErrorTranslator.userMessage(e);
     }
 
     _isLoading = false;
@@ -34,9 +37,57 @@ class OrderProvider extends ChangeNotifier {
     try {
       return await _apiService.createVnpayPaymentUrl(amount: amount, orderId: orderId);
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = ErrorTranslator.userMessage(e);
       return null;
     }
+  }
+
+  Future<String?> repayOrder(int orderId) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final paymentUrl = await _apiService.repayOrder(orderId);
+      _isLoading = false;
+      notifyListeners();
+      return paymentUrl;
+    } catch (e) {
+      _errorMessage = ErrorTranslator.userMessage(e);
+      _isLoading = false;
+      notifyListeners();
+      return null;
+    }
+  }
+
+  Future<bool> cancelOrder(int orderId, List<Product> products) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _apiService.cancelOrder(orderId);
+      _orders = await _apiService.getOrders(products);
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = ErrorTranslator.userMessage(e);
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<void> loadTransactionHistory() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      _paidTransactions = await _apiService.getTransactionHistory();
+    } catch (e) {
+      _errorMessage = ErrorTranslator.userMessage(e);
+    }
+    _isLoading = false;
+    notifyListeners();
   }
 
   Future<OrderModel?> placeOrder({
@@ -68,7 +119,7 @@ class OrderProvider extends ChangeNotifier {
       notifyListeners();
       return order;
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = ErrorTranslator.userMessage(e);
       _isLoading = false;
       notifyListeners();
       return null;

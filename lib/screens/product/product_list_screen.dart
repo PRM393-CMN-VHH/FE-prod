@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:prm393/providers/product_provider.dart';
 import 'package:prm393/screens/product/product_detail_screen.dart';
 import 'package:prm393/theme/app_theme.dart';
+import 'package:prm393/utils/currency_formatter.dart';
 
 class ProductListScreen extends StatefulWidget {
   const ProductListScreen({super.key});
@@ -13,9 +16,11 @@ class ProductListScreen extends StatefulWidget {
 
 class _ProductListScreenState extends State<ProductListScreen> {
   final _searchController = TextEditingController();
+  Timer? _searchDebounce;
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -50,7 +55,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 child: TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
-                    hintText: "Search flowers...",
+                    hintText: "Tìm kiếm hoa...",
                     prefixIcon: const Icon(Icons.search, color: AppTheme.textSecondaryColor),
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
@@ -66,7 +71,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   onChanged: (value) {
-                    productProvider.setSearchQuery(value);
+                    _searchDebounce?.cancel();
+                    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+                      productProvider.setSearchQuery(value);
+                    });
                   },
                 ),
               ),
@@ -95,7 +103,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
             itemBuilder: (context, index) {
               final isAll = index == 0;
               final catId = isAll ? 0 : productProvider.categories[index - 1].id;
-              final catName = isAll ? "All Flowers" : productProvider.categories[index - 1].name;
+              final catName = isAll ? "Tất cả" : productProvider.categories[index - 1].name;
               final isSelected = productProvider.selectedCategoryId == catId;
 
               return Padding(
@@ -147,7 +155,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     : productProvider.filteredProducts.isEmpty
                         ? const Center(
                             child: Text(
-                              "No flowers found. Try adjusting filters.",
+                              "Không tìm thấy sản phẩm phù hợp.",
                               style: TextStyle(color: AppTheme.textSecondaryColor),
                             ),
                           )
@@ -187,7 +195,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                             Image.network(
                                               product.imageUrl,
                                               fit: BoxFit.cover,
-                                              errorBuilder: (_, __, ___) => const Center(
+                                              errorBuilder: (_, _, _) => const Center(
                                                 child: Icon(Icons.broken_image_outlined, size: 40),
                                               ),
                                             ),
@@ -202,7 +210,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                                     borderRadius: BorderRadius.circular(8),
                                                   ),
                                                   child: const Text(
-                                                    "SALE",
+                                                    "GIẢM",
                                                     style: TextStyle(
                                                       color: Colors.white,
                                                       fontSize: 10,
@@ -216,7 +224,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                                 color: Colors.black.withOpacity(0.4),
                                                 child: const Center(
                                                   child: Text(
-                                                    "Out of Stock",
+                                                    "Hết hàng",
                                                     style: TextStyle(
                                                       color: Colors.white,
                                                       fontWeight: FontWeight.bold,
@@ -254,7 +262,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                             Row(
                                               children: [
                                                 Text(
-                                                  "\$${dispPrice.toStringAsFixed(2)}",
+                                                  formatVnd(dispPrice),
                                                   style: textTheme.labelLarge?.copyWith(
                                                     fontSize: 15,
                                                     color: AppTheme.primaryColor,
@@ -263,7 +271,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                                 if (isPromo) ...[
                                                   const SizedBox(width: 6),
                                                   Text(
-                                                    "\$${product.price.toStringAsFixed(2)}",
+                                                    formatVnd(product.price),
                                                     style: const TextStyle(
                                                       decoration: TextDecoration.lineThrough,
                                                       color: Colors.grey,
@@ -337,13 +345,13 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("Filters", style: textTheme.titleLarge),
+              Text("Bộ lọc", style: textTheme.titleLarge),
               TextButton(
                 onPressed: () {
                   pProv.clearFilters();
                   Navigator.pop(context);
                 },
-                child: const Text("Reset All", style: TextStyle(color: Colors.grey)),
+                child: const Text("Đặt lại", style: TextStyle(color: Colors.grey)),
               )
             ],
           ),
@@ -351,7 +359,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           const SizedBox(height: 12),
 
           // Price range fields
-          Text("Price Range", style: textTheme.titleMedium),
+          Text("Khoảng giá", style: textTheme.titleMedium),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -360,7 +368,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                   controller: _minPriceController,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
-                    labelText: "Min Price (\$)",
+                    labelText: "Giá thấp nhất (VND)",
                     contentPadding: EdgeInsets.all(10),
                   ),
                 ),
@@ -371,7 +379,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                   controller: _maxPriceController,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
-                    labelText: "Max Price (\$)",
+                    labelText: "Giá cao nhất (VND)",
                     contentPadding: EdgeInsets.all(10),
                   ),
                 ),
@@ -381,18 +389,18 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           const SizedBox(height: 16),
 
           // Color selection
-          Text("Flower Color", style: textTheme.titleMedium),
+          Text("Màu hoa", style: textTheme.titleMedium),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-            value: _selectedColor,
-            hint: const Text("Select color"),
+            initialValue: _selectedColor,
+            hint: const Text("Chọn màu"),
             decoration: const InputDecoration(
               contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             ),
             items: [
               const DropdownMenuItem<String>(
                 value: null,
-                child: Text("All Colors"),
+                child: Text("Tất cả màu"),
               ),
               ...colorsList.map((color) => DropdownMenuItem<String>(
                     value: color,
@@ -409,8 +417,8 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
 
           // Toggle Switches
           SwitchListTile(
-            title: const Text("Only items in stock"),
-            activeColor: AppTheme.primaryColor,
+            title: const Text("Chỉ sản phẩm còn hàng"),
+            activeThumbColor: AppTheme.primaryColor,
             value: _onlyInStock,
             contentPadding: EdgeInsets.zero,
             onChanged: (val) {
@@ -420,8 +428,8 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             },
           ),
           SwitchListTile(
-            title: const Text("On sale items"),
-            activeColor: AppTheme.primaryColor,
+            title: const Text("Sản phẩm đang giảm giá"),
+            activeThumbColor: AppTheme.primaryColor,
             value: _onlyPromo,
             contentPadding: EdgeInsets.zero,
             onChanged: (val) {
@@ -445,7 +453,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
               );
               Navigator.pop(context);
             },
-            child: const Text("Apply Filters"),
+            child: const Text("Áp dụng"),
           ),
         ],
       ),

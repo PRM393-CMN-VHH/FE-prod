@@ -3,7 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:prm393/models/product.dart';
 import 'package:prm393/providers/cart_provider.dart';
 import 'package:prm393/providers/notification_provider.dart';
+import 'package:prm393/providers/product_provider.dart';
 import 'package:prm393/theme/app_theme.dart';
+import 'package:prm393/utils/currency_formatter.dart';
+import 'package:prm393/utils/error_translator.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final Product product;
@@ -15,9 +18,40 @@ class ProductDetailScreen extends StatefulWidget {
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   int _quantity = 1;
+  late Product _product;
+  List<Product> _relatedProducts = [];
+  bool _isLoadingDetail = true;
+  String? _detailError;
+
+  @override
+  void initState() {
+    super.initState();
+    _product = widget.product;
+    _loadBackendDetail();
+  }
+
+  Future<void> _loadBackendDetail() async {
+    final productProvider = Provider.of<ProductProvider>(context, listen: false);
+    try {
+      final detail = await productProvider.loadProductDetail(widget.product.id);
+      final related = await productProvider.loadRelatedProducts(widget.product.id);
+      if (!mounted) return;
+      setState(() {
+        _product = detail;
+        _relatedProducts = related;
+        _isLoadingDetail = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _detailError = ErrorTranslator.userMessage(e);
+        _isLoadingDetail = false;
+      });
+    }
+  }
 
   void _increaseQty() {
-    if (_quantity < widget.product.stock) {
+    if (_quantity < _product.stock) {
       setState(() {
         _quantity++;
       });
@@ -36,15 +70,24 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final cartProv = Provider.of<CartProvider>(context, listen: false);
     final notifProv = Provider.of<NotificationProvider>(context, listen: false);
 
-    await cartProv.addToCart(widget.product, _quantity);
+    final added = await cartProv.addToCart(_product, _quantity);
+    if (!added && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(cartProv.errorMessage ?? "Không thể thêm sản phẩm vào giỏ. Vui lòng thử lại."),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
     
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Added $_quantity x ${widget.product.name} to cart!"),
+          content: Text("Đã thêm $_quantity x ${_product.name} vào giỏ hàng"),
           backgroundColor: AppTheme.primaryColor,
           action: SnackBarAction(
-            label: "View Cart",
+            label: "Xem giỏ",
             textColor: Colors.white,
             onPressed: () {
               Navigator.pop(context); // Go back to Home and switch to Cart tab manually (or just return)
@@ -55,15 +98,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       
       // Trigger a brief notification milestone
       await notifProv.triggerNotification(
-        "Item added to Cart",
-        "${widget.product.name} (Qty: $_quantity) was successfully added to your shopping cart."
+        "Đã thêm vào giỏ",
+        "${_product.name} (SL: $_quantity) đã được thêm vào giỏ hàng."
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final product = widget.product;
+    final product = _product;
     final isPromo = product.promoPrice != null;
     final dispPrice = product.promoPrice ?? product.price;
     final textTheme = Theme.of(context).textTheme;
@@ -112,6 +155,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (_isLoadingDetail)
+                    const LinearProgressIndicator(color: AppTheme.primaryColor),
+                  if (_detailError != null) ...[
+                    Text(
+                      _detailError!,
+                      style: const TextStyle(color: Colors.redAccent),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   // Title and Price row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -137,7 +189,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            "\$${dispPrice.toStringAsFixed(2)}",
+                            formatVnd(dispPrice),
                             style: textTheme.headlineMedium?.copyWith(
                               color: AppTheme.primaryColor,
                               fontWeight: FontWeight.bold,
@@ -146,7 +198,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           if (isPromo) ...[
                             const SizedBox(height: 2),
                             Text(
-                              "\$${product.price.toStringAsFixed(2)}",
+                              formatVnd(product.price),
                               style: const TextStyle(
                                 decoration: TextDecoration.lineThrough,
                                 color: Colors.grey,
@@ -187,8 +239,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       const SizedBox(width: 8),
                       Text(
                         product.stock > 0 
-                            ? "In Stock (${product.stock} items remaining)" 
-                            : "Temporarily unavailable",
+                            ? "Còn hàng (${product.stock} sản phẩm)" 
+                            : "Tạm hết hàng",
                         style: TextStyle(
                           color: product.stock > 0 ? Colors.green.shade700 : Colors.red.shade700,
                           fontWeight: FontWeight.bold,
@@ -201,7 +253,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   const Divider(),
                   const SizedBox(height: 16),
                   
-                  Text("About this flower boutique", style: textTheme.titleMedium),
+                  Text("Thông tin sản phẩm", style: textTheme.titleMedium),
                   const SizedBox(height: 8),
                   Text(
                     product.description,
@@ -224,7 +276,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               Icon(Icons.spa, color: AppTheme.primaryColor, size: 20),
                               SizedBox(width: 8),
                               Text(
-                                "Care Instructions",
+                                "Hướng dẫn chăm sóc",
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: AppTheme.primaryColor,
@@ -245,6 +297,66 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       ),
                     ),
                   ),
+
+                  if (_relatedProducts.isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    Text("Sản phẩm liên quan", style: textTheme.titleMedium),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 170,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _relatedProducts.length,
+                        separatorBuilder: (_, _) => const SizedBox(width: 12),
+                        itemBuilder: (context, index) {
+                          final related = _relatedProducts[index];
+                          return SizedBox(
+                            width: 130,
+                            child: InkWell(
+                              onTap: () {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ProductDetailScreen(product: related),
+                                  ),
+                                );
+                              },
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.network(
+                                        related.imageUrl,
+                                        width: double.infinity,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, _, _) => Container(
+                                          color: Colors.grey.shade200,
+                                          child: const Icon(Icons.broken_image_outlined),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    related.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                                  ),
+                                  Text(
+                                    formatVnd(related.price),
+                                    style: const TextStyle(color: AppTheme.primaryColor),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
 
                   const SizedBox(height: 100), // Spacing for floating checkout buttons
                 ],
@@ -297,7 +409,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: _addToCart,
-                      child: const Text("Add to Cart"),
+                      child: const Text("Thêm vào giỏ"),
                     ),
                   ),
                 ],

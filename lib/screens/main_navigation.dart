@@ -6,10 +6,10 @@ import 'package:prm393/providers/notification_provider.dart';
 import 'package:prm393/providers/product_provider.dart';
 import 'package:prm393/providers/chat_provider.dart';
 import 'package:prm393/screens/product/product_list_screen.dart';
-import 'package:prm393/screens/cart/cart_screen.dart';
+import 'package:prm393/screens/cart/cart_order_screen.dart';
+import 'package:prm393/screens/profile/profile_screen.dart';
 import 'package:prm393/screens/map/map_screen.dart';
-import 'package:prm393/screens/chat/chat_screen.dart';
-import 'package:prm393/screens/notification/notification_screen.dart';
+import 'package:prm393/screens/support/support_screen.dart';
 import 'package:prm393/theme/app_theme.dart';
 
 class MainNavigation extends StatefulWidget {
@@ -22,22 +22,20 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = [
-    const ProductListScreen(),
-    const CartScreen(),
-    const MapScreen(),
-    const ChatScreen(),
-    const NotificationScreen(),
-  ];
-
   @override
   void initState() {
     super.initState();
     // Fetch initial data after build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final productProv = Provider.of<ProductProvider>(context, listen: false);
-      Provider.of<CartProvider>(context, listen: false).loadCart(productProv.products);
-      Provider.of<NotificationProvider>(context, listen: false).loadNotifications();
+      Provider.of<CartProvider>(
+        context,
+        listen: false,
+      ).loadCart(productProv.products);
+      Provider.of<NotificationProvider>(
+        context,
+        listen: false,
+      ).loadNotifications();
       Provider.of<ChatProvider>(context, listen: false).loadMessages();
     });
   }
@@ -47,6 +45,23 @@ class _MainNavigationState extends State<MainNavigation> {
     final cartProvider = Provider.of<CartProvider>(context);
     final notificationProvider = Provider.of<NotificationProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
+    final screens = <Widget>[
+      const ProductListScreen(),
+      const CartOrderScreen(),
+      const ProfileScreen(),
+      const MapScreen(),
+      const SupportScreen(),
+    ];
+    final titles = <String>[
+      "Tiệm Hoa Xinh",
+      "Giỏ & Đơn hàng",
+      "Hồ sơ",
+      "Cửa hàng",
+      "Chat & Tin",
+    ];
+    if (_currentIndex >= screens.length) {
+      _currentIndex = screens.length - 1;
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -56,11 +71,11 @@ class _MainNavigationState extends State<MainNavigation> {
             const Icon(Icons.local_florist, color: AppTheme.primaryColor),
             const SizedBox(width: 8),
             Text(
-              _currentIndex == 0 ? "Tiem Hoa Xinh" : 
-              _currentIndex == 1 ? "Shopping Cart" :
-              _currentIndex == 2 ? "Our Stores" :
-              _currentIndex == 3 ? "Support Chat" : "Notifications",
-              style: const TextStyle(fontFamily: 'serif', fontWeight: FontWeight.bold),
+              titles[_currentIndex],
+              style: const TextStyle(
+                fontFamily: 'serif',
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
@@ -72,12 +87,14 @@ class _MainNavigationState extends State<MainNavigation> {
               showDialog(
                 context: context,
                 builder: (ctx) => AlertDialog(
-                  title: const Text("Sign Out"),
-                  content: const Text("Are you sure you want to log out from Tiem Hoa Xinh?"),
+                  title: const Text("Đăng xuất"),
+                  content: const Text(
+                    "Bạn có chắc muốn đăng xuất khỏi Tiệm Hoa Xinh?",
+                  ),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(ctx),
-                      child: const Text("Cancel"),
+                      child: const Text("Hủy"),
                     ),
                     TextButton(
                       onPressed: () {
@@ -85,7 +102,7 @@ class _MainNavigationState extends State<MainNavigation> {
                         authProvider.signOut();
                       },
                       child: const Text(
-                        "Sign Out",
+                        "Đăng xuất",
                         style: TextStyle(color: Colors.redAccent),
                       ),
                     ),
@@ -93,14 +110,12 @@ class _MainNavigationState extends State<MainNavigation> {
                 ),
               );
             },
-          )
+          ),
         ],
       ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
+      body: IndexedStack(index: _currentIndex, children: screens),
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         currentIndex: _currentIndex,
         onTap: (index) {
           setState(() {
@@ -111,7 +126,7 @@ class _MainNavigationState extends State<MainNavigation> {
           const BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
             activeIcon: Icon(Icons.home),
-            label: "Home",
+            label: "Trang chủ",
           ),
           BottomNavigationBarItem(
             icon: Badge(
@@ -124,30 +139,30 @@ class _MainNavigationState extends State<MainNavigation> {
               isLabelVisible: cartProvider.totalItemCount > 0,
               child: const Icon(Icons.shopping_cart),
             ),
-            label: "Cart",
+            label: "Giỏ/Đơn",
+          ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
+            label: "Hồ sơ",
           ),
           const BottomNavigationBarItem(
             icon: Icon(Icons.map_outlined),
             activeIcon: Icon(Icons.map),
-            label: "Stores",
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline),
-            activeIcon: Icon(Icons.chat_bubble),
-            label: "Chat",
+            label: "Cửa hàng",
           ),
           BottomNavigationBarItem(
             icon: Badge(
               label: Text(notificationProvider.unreadCount.toString()),
               isLabelVisible: notificationProvider.unreadCount > 0,
-              child: const Icon(Icons.notifications_outlined),
+              child: const Icon(Icons.chat_bubble_outline),
             ),
             activeIcon: Badge(
               label: Text(notificationProvider.unreadCount.toString()),
               isLabelVisible: notificationProvider.unreadCount > 0,
-              child: const Icon(Icons.notifications),
+              child: const Icon(Icons.chat_bubble),
             ),
-            label: "Alerts",
+            label: "Chat/Tin",
           ),
         ],
       ),

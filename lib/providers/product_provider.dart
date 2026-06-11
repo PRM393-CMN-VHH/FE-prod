@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:prm393/models/category.dart';
 import 'package:prm393/models/product.dart';
 import 'package:prm393/services/api_service.dart';
+import 'package:prm393/utils/error_translator.dart';
 
 class ProductProvider extends ChangeNotifier {
   final ApiService _apiService = ApiService();
 
   List<Product> _products = [];
   List<Category> _categories = [];
+  List<Map<String, dynamic>> _suggestions = [];
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -22,6 +24,7 @@ class ProductProvider extends ChangeNotifier {
 
   List<Product> get products => _products;
   List<Category> get categories => _categories;
+  List<Map<String, dynamic>> get suggestions => _suggestions;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
@@ -46,21 +49,57 @@ class ProductProvider extends ChangeNotifier {
       _categories = await _apiService.getCategories();
       _products = await _apiService.getProducts();
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = ErrorTranslator.userMessage(e);
     }
 
     _isLoading = false;
     notifyListeners();
   }
 
-  void selectCategory(int categoryId) {
+  Future<void> selectCategory(int categoryId) async {
     _selectedCategoryId = categoryId;
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      _products = categoryId == 0
+          ? await _apiService.getProducts()
+          : await _apiService.getProductsByCategory(categoryId);
+    } catch (e) {
+      _errorMessage = ErrorTranslator.userMessage(e);
+    }
+    _isLoading = false;
     notifyListeners();
   }
 
-  void setSearchQuery(String query) {
+  Future<void> setSearchQuery(String query) async {
     _searchQuery = query;
+    _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
+    try {
+      if (query.trim().isEmpty) {
+        _suggestions = [];
+        _products = _selectedCategoryId == 0
+            ? await _apiService.getProducts()
+            : await _apiService.getProductsByCategory(_selectedCategoryId);
+      } else {
+        _products = await _apiService.searchProducts(query.trim());
+        _suggestions = await _apiService.suggestProducts(query.trim());
+      }
+    } catch (e) {
+      _errorMessage = ErrorTranslator.userMessage(e);
+    }
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<Product> loadProductDetail(int productId) {
+    return _apiService.getProductDetail(productId);
+  }
+
+  Future<List<Product>> loadRelatedProducts(int productId) {
+    return _apiService.getRelatedProducts(productId);
   }
 
   void setFilters({
@@ -86,7 +125,9 @@ class ProductProvider extends ChangeNotifier {
     _onlyPromo = false;
     _searchQuery = '';
     _selectedCategoryId = 0;
+    _suggestions = [];
     notifyListeners();
+    loadCatalog();
   }
 
   // Get filtered products list dynamically
