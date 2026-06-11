@@ -87,6 +87,8 @@ class ApiService {
       "$backendBaseUrl/admin/users/activate";
   static String get apiAdminUserDeactivate =>
       "$backendBaseUrl/admin/users/deactivate";
+  static String get apiAdminUserUpdateRole =>
+      "$backendBaseUrl/admin/users/update-role";
 
   SupabaseClient? _supabase;
   bool get isSupabaseInitialized => _supabase != null;
@@ -366,7 +368,12 @@ class ApiService {
   }
 
   Future<UserModel> getProfile() async {
-    final response = await getRequest(apiProfile);
+    dynamic response;
+    try {
+      response = await getRequest(apiProfile);
+    } catch (_) {
+      response = await getRequest(apiCurrentUser);
+    }
     if (response is Map<String, dynamic>) {
       final user = UserModel.fromJson(response);
       await _saveLocalUser(user);
@@ -869,6 +876,18 @@ class ApiService {
     final response = await postEmptyRequest("$apiAdminUserDeactivate/$userId");
     if (response is Map<String, dynamic>) return UserModel.fromJson(response);
     throw Exception("Invalid deactivate user response from server");
+  }
+
+  Future<UserModel> updateAdminUserRole({
+    required int userId,
+    required int roleId,
+  }) async {
+    final uri = Uri.parse(
+      "$apiAdminUserUpdateRole/$userId",
+    ).replace(queryParameters: {'roleId': roleId.toString()});
+    final response = await postEmptyRequest(uri.toString());
+    if (response is Map<String, dynamic>) return UserModel.fromJson(response);
+    throw Exception("Invalid update user role response from server");
   }
 
   // ==========================================

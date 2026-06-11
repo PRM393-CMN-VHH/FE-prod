@@ -49,46 +49,113 @@ class _ProductListScreenState extends State<ProductListScreen> {
         // Search and Filter Bar
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: Row(
+          child: Column(
             children: [
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: "Tìm kiếm hoa...",
-                    prefixIcon: const Icon(Icons.search, color: AppTheme.textSecondaryColor),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear, color: AppTheme.textSecondaryColor),
-                            onPressed: () {
-                              _searchController.clear();
-                              productProvider.setSearchQuery('');
-                            },
-                          )
-                        : null,
-                    fillColor: Colors.white,
-                    filled: true,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: "Tìm kiếm hoa...",
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          color: AppTheme.textSecondaryColor,
+                        ),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(
+                                  Icons.clear,
+                                  color: AppTheme.textSecondaryColor,
+                                ),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  productProvider.setSearchQuery('');
+                                  setState(() {});
+                                },
+                              )
+                            : null,
+                        fillColor: Colors.white,
+                        filled: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                        ),
+                      ),
+                      onChanged: (value) {
+                        setState(() {});
+                        _searchDebounce?.cancel();
+                        _searchDebounce = Timer(
+                          const Duration(milliseconds: 350),
+                          () {
+                            productProvider.setSearchQuery(value);
+                          },
+                        );
+                      },
+                    ),
                   ),
-                  onChanged: (value) {
-                    _searchDebounce?.cancel();
-                    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
-                      productProvider.setSearchQuery(value);
-                    });
-                  },
-                ),
+                  const SizedBox(width: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.tune, color: Colors.white),
+                      onPressed: () => _showFilterSheet(context),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              Container(
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor,
-                  borderRadius: BorderRadius.circular(16),
+              if (productProvider.suggestions.isNotEmpty &&
+                  _searchController.text.trim().isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.only(top: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  constraints: const BoxConstraints(maxHeight: 220),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: productProvider.suggestions.length,
+                    separatorBuilder: (_, _) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final suggestion = productProvider.suggestions[index];
+                      final id = int.tryParse('${suggestion['id']}') ?? 0;
+                      final name = suggestion['name']?.toString() ?? '';
+                      final imageUrl = suggestion['imageUrl']?.toString() ?? '';
+                      return ListTile(
+                        dense: true,
+                        leading: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            imageUrl,
+                            width: 42,
+                            height: 42,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) =>
+                                const Icon(Icons.local_florist),
+                          ),
+                        ),
+                        title: Text(name),
+                        onTap: () async {
+                          FocusScope.of(context).unfocus();
+                          final product = await productProvider
+                              .loadProductDetail(id);
+                          if (!context.mounted) return;
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  ProductDetailScreen(product: product),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
                 ),
-                child: IconButton(
-                  icon: const Icon(Icons.tune, color: Colors.white),
-                  onPressed: () => _showFilterSheet(context),
-                ),
-              ),
             ],
           ),
         ),
@@ -102,8 +169,12 @@ class _ProductListScreenState extends State<ProductListScreen> {
             itemCount: productProvider.categories.length + 1,
             itemBuilder: (context, index) {
               final isAll = index == 0;
-              final catId = isAll ? 0 : productProvider.categories[index - 1].id;
-              final catName = isAll ? "Tất cả" : productProvider.categories[index - 1].name;
+              final catId = isAll
+                  ? 0
+                  : productProvider.categories[index - 1].id;
+              final catName = isAll
+                  ? "Tất cả"
+                  : productProvider.categories[index - 1].name;
               final isSelected = productProvider.selectedCategoryId == catId;
 
               return Padding(
@@ -112,8 +183,12 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   label: Text(
                     catName,
                     style: TextStyle(
-                      color: isSelected ? Colors.white : AppTheme.textSecondaryColor,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: isSelected
+                          ? Colors.white
+                          : AppTheme.textSecondaryColor,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                     ),
                   ),
                   selected: isSelected,
@@ -124,7 +199,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                     side: BorderSide(
-                      color: isSelected ? AppTheme.primaryColor : Colors.grey.shade200,
+                      color: isSelected
+                          ? AppTheme.primaryColor
+                          : Colors.grey.shade200,
                       width: 1,
                     ),
                   ),
@@ -146,150 +223,161 @@ class _ProductListScreenState extends State<ProductListScreen> {
             color: AppTheme.primaryColor,
             child: productProvider.isLoading
                 ? const Center(
-                    child: CircularProgressIndicator(color: AppTheme.primaryColor),
+                    child: CircularProgressIndicator(
+                      color: AppTheme.primaryColor,
+                    ),
                   )
                 : productProvider.errorMessage != null
-                    ? Center(
-                        child: Text(productProvider.errorMessage!),
-                      )
-                    : productProvider.filteredProducts.isEmpty
-                        ? const Center(
-                            child: Text(
-                              "Không tìm thấy sản phẩm phù hợp.",
-                              style: TextStyle(color: AppTheme.textSecondaryColor),
-                            ),
-                          )
-                        : GridView.builder(
-                            padding: const EdgeInsets.all(16),
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              childAspectRatio: 0.72,
-                              crossAxisSpacing: 16,
-                              mainAxisSpacing: 16,
-                            ),
-                            itemCount: productProvider.filteredProducts.length,
-                            itemBuilder: (context, index) {
-                              final product = productProvider.filteredProducts[index];
-                              final isPromo = product.promoPrice != null;
-                              final dispPrice = product.promoPrice ?? product.price;
+                ? Center(child: Text(productProvider.errorMessage!))
+                : productProvider.filteredProducts.isEmpty
+                ? const Center(
+                    child: Text(
+                      "Không tìm thấy sản phẩm phù hợp.",
+                      style: TextStyle(color: AppTheme.textSecondaryColor),
+                    ),
+                  )
+                : GridView.builder(
+                    padding: const EdgeInsets.all(16),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 0.72,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                        ),
+                    itemCount: productProvider.filteredProducts.length,
+                    itemBuilder: (context, index) {
+                      final product = productProvider.filteredProducts[index];
+                      final isPromo = product.promoPrice != null;
+                      final dispPrice = product.promoPrice ?? product.price;
 
-                              return Card(
-                                clipBehavior: Clip.antiAlias,
-                                child: InkWell(
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => ProductDetailScreen(product: product),
-                                      ),
-                                    );
-                                  },
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      // Image
-                                      Expanded(
-                                        child: Stack(
-                                          fit: StackFit.expand,
-                                          children: [
-                                            Image.network(
-                                              product.imageUrl,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (_, _, _) => const Center(
-                                                child: Icon(Icons.broken_image_outlined, size: 40),
-                                              ),
-                                            ),
-                                            if (isPromo)
-                                              Positioned(
-                                                top: 10,
-                                                left: 10,
-                                                child: Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                  decoration: BoxDecoration(
-                                                    color: AppTheme.primaryColor,
-                                                    borderRadius: BorderRadius.circular(8),
-                                                  ),
-                                                  child: const Text(
-                                                    "GIẢM",
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 10,
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            if (product.stock <= 0)
-                                              Container(
-                                                color: Colors.black.withOpacity(0.4),
-                                                child: const Center(
-                                                  child: Text(
-                                                    "Hết hàng",
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontWeight: FontWeight.bold,
-                                                      fontSize: 14,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                          ],
+                      return Card(
+                        clipBehavior: Clip.antiAlias,
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    ProductDetailScreen(product: product),
+                              ),
+                            );
+                          },
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Image
+                              Expanded(
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    Image.network(
+                                      product.imageUrl,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, _, _) => const Center(
+                                        child: Icon(
+                                          Icons.broken_image_outlined,
+                                          size: 40,
                                         ),
                                       ),
-                                      
-                                      // Info
-                                      Padding(
-                                        padding: const EdgeInsets.all(10),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              product.name,
-                                              style: textTheme.titleMedium?.copyWith(
-                                                fontSize: 14,
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
+                                    ),
+                                    if (isPromo)
+                                      Positioned(
+                                        top: 10,
+                                        left: 10,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.primaryColor,
+                                            borderRadius: BorderRadius.circular(
+                                              8,
                                             ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              product.flowerType,
-                                              style: textTheme.bodyMedium?.copyWith(
-                                                fontSize: 12,
-                                              ),
+                                          ),
+                                          child: const Text(
+                                            "GIẢM",
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
                                             ),
-                                            const SizedBox(height: 6),
-                                            Row(
-                                              children: [
-                                                Text(
-                                                  formatVnd(dispPrice),
-                                                  style: textTheme.labelLarge?.copyWith(
-                                                    fontSize: 15,
-                                                    color: AppTheme.primaryColor,
-                                                  ),
-                                                ),
-                                                if (isPromo) ...[
-                                                  const SizedBox(width: 6),
-                                                  Text(
-                                                    formatVnd(product.price),
-                                                    style: const TextStyle(
-                                                      decoration: TextDecoration.lineThrough,
-                                                      color: Colors.grey,
-                                                      fontSize: 12,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ],
-                                            ),
-                                          ],
+                                          ),
                                         ),
                                       ),
-                                    ],
-                                  ),
+                                    if (product.stock <= 0)
+                                      Container(
+                                        color: Colors.black.withOpacity(0.4),
+                                        child: const Center(
+                                          child: Text(
+                                            "Hết hàng",
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
-                              );
-                            },
+                              ),
+
+                              // Info
+                              Padding(
+                                padding: const EdgeInsets.all(10),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      product.name,
+                                      style: textTheme.titleMedium?.copyWith(
+                                        fontSize: 14,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      product.flowerType,
+                                      style: textTheme.bodyMedium?.copyWith(
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          formatVnd(dispPrice),
+                                          style: textTheme.labelLarge?.copyWith(
+                                            fontSize: 15,
+                                            color: AppTheme.primaryColor,
+                                          ),
+                                        ),
+                                        if (isPromo) ...[
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            formatVnd(product.price),
+                                            style: const TextStyle(
+                                              decoration:
+                                                  TextDecoration.lineThrough,
+                                              color: Colors.grey,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
+                        ),
+                      );
+                    },
+                  ),
           ),
         ),
       ],
@@ -337,7 +425,12 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
     final textTheme = Theme.of(context).textTheme;
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        20,
+        20,
+        MediaQuery.of(context).viewInsets.bottom + 20,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -351,8 +444,11 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                   pProv.clearFilters();
                   Navigator.pop(context);
                 },
-                child: const Text("Đặt lại", style: TextStyle(color: Colors.grey)),
-              )
+                child: const Text(
+                  "Đặt lại",
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
             ],
           ),
           const Divider(),
@@ -402,10 +498,10 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                 value: null,
                 child: Text("Tất cả màu"),
               ),
-              ...colorsList.map((color) => DropdownMenuItem<String>(
-                    value: color,
-                    child: Text(color),
-                  )),
+              ...colorsList.map(
+                (color) =>
+                    DropdownMenuItem<String>(value: color, child: Text(color)),
+              ),
             ],
             onChanged: (val) {
               setState(() {

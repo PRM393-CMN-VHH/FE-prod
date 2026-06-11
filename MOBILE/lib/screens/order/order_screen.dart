@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:prm393/models/order.dart';
 import 'package:prm393/providers/order_provider.dart';
 import 'package:prm393/providers/product_provider.dart';
+import 'package:prm393/screens/order/order_detail_screen.dart';
 import 'package:prm393/screens/cart/vnpay_payment_screen.dart';
 import 'package:prm393/theme/app_theme.dart';
 import 'package:prm393/utils/currency_formatter.dart';
@@ -252,68 +253,79 @@ class _OrderList extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               side: BorderSide(color: Colors.grey.shade200),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Đơn #${order.id}",
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      Text(
-                        order.status,
-                        style: const TextStyle(
-                          color: AppTheme.primaryColor,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => OrderDetailScreen(orderId: order.id),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "Thanh toán: ${order.paymentMethod} ${order.paymentStatus.isEmpty ? '' : '(${order.paymentStatus})'}",
-                  ),
-                  const SizedBox(height: 4),
-                  Text("Tổng tiền: ${formatVnd(order.totalAmount)}"),
-                  if (order.items.isNotEmpty) ...[
-                    const Divider(height: 24),
-                    ...order.items
-                        .take(3)
-                        .map(
-                          (item) => Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Text(
-                              "${item.product.name} x${item.quantity}",
-                            ),
-                          ),
-                        ),
-                  ],
-                  if (canCancel || canRepay) ...[
-                    const SizedBox(height: 12),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        if (canRepay)
-                          OutlinedButton(
-                            onPressed: () => onRepay!(order),
-                            child: const Text("Thanh toán"),
+                        Text(
+                          "Đơn #${order.id}",
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        Text(
+                          order.status,
+                          style: const TextStyle(
+                            color: AppTheme.primaryColor,
+                            fontWeight: FontWeight.bold,
                           ),
-                        if (canRepay && canCancel) const SizedBox(width: 8),
-                        if (canCancel)
-                          TextButton(
-                            onPressed: () => onCancel!(order),
-                            child: const Text(
-                              "Hủy đơn",
-                              style: TextStyle(color: Colors.redAccent),
-                            ),
-                          ),
+                        ),
                       ],
                     ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Thanh toán: ${order.paymentMethod} ${order.paymentStatus.isEmpty ? '' : '(${order.paymentStatus})'}",
+                    ),
+                    const SizedBox(height: 4),
+                    Text("Tổng tiền: ${formatVnd(order.totalAmount)}"),
+                    if (order.items.isNotEmpty) ...[
+                      const Divider(height: 24),
+                      ...order.items
+                          .take(3)
+                          .map(
+                            (item) => Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Text(
+                                "${item.product.name} x${item.quantity}",
+                              ),
+                            ),
+                          ),
+                    ],
+                    if (canCancel || canRepay) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          if (canRepay)
+                            OutlinedButton(
+                              onPressed: () => onRepay!(order),
+                              child: const Text("Thanh toán"),
+                            ),
+                          if (canRepay && canCancel) const SizedBox(width: 8),
+                          if (canCancel)
+                            TextButton(
+                              onPressed: () => onCancel!(order),
+                              child: const Text(
+                                "Hủy đơn",
+                                style: TextStyle(color: Colors.redAccent),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           );

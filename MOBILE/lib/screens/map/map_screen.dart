@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 import 'package:prm393/models/store_location.dart';
 import 'package:prm393/services/api_service.dart';
 import 'package:prm393/theme/app_theme.dart';
@@ -13,46 +16,71 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   final ApiService _apiService = ApiService();
-  List<StoreLocation> _locations = [];
   StoreLocation? _selectedLocation;
   bool _isLoading = true;
-
-  // Map simulated zoom/pan offsets
-  double _zoomLevel = 1.0;
-  Offset _mapOffset = Offset.zero;
+  late final WebViewController _mapController;
 
   @override
   void initState() {
     super.initState();
+    _mapController = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted);
     _loadLocations();
   }
 
   void _loadLocations() async {
     final locs = await _apiService.getStoreLocations();
     setState(() {
-      _locations = locs;
       if (locs.isNotEmpty) {
         _selectedLocation = locs.first;
       }
       _isLoading = false;
     });
+    if (locs.isNotEmpty) {
+      _loadAppleMap(locs.first);
+    }
+  }
+
+  Uri _appleMapUri(StoreLocation location) {
+    return Uri.https('maps.apple.com', '/', {
+      'll': '${location.latitude},${location.longitude}',
+      'q': location.name,
+      'z': '15',
+    });
+  }
+
+  void _loadAppleMap(StoreLocation location) {
+    _mapController.loadRequest(_appleMapUri(location));
   }
 
   void _openInExternalMap(StoreLocation location) async {
-    final url = Uri.parse(
-      "https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}"
+    final appleMapsUrl = Uri.parse(
+      "maps://?ll=${location.latitude},${location.longitude}&q=${Uri.encodeComponent(location.name)}",
+    );
+    final browserAppleMapsUrl = _appleMapUri(location);
+    final googleMapsUrl = Uri.parse(
+      "https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}",
     );
     try {
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
+      if (!kIsWeb &&
+          defaultTargetPlatform == TargetPlatform.iOS &&
+          await canLaunchUrl(appleMapsUrl)) {
+        await launchUrl(appleMapsUrl, mode: LaunchMode.externalApplication);
+      } else if (await canLaunchUrl(browserAppleMapsUrl)) {
+        await launchUrl(
+          browserAppleMapsUrl,
+          mode: LaunchMode.externalApplication,
+        );
+      } else if (await canLaunchUrl(googleMapsUrl)) {
+        await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
       } else {
-        await launchUrl(url, mode: LaunchMode.platformDefault);
+        await launchUrl(browserAppleMapsUrl, mode: LaunchMode.platformDefault);
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Could not launch external map application"),
+            content: Text("Không thể mở ứng dụng bản đồ"),
             backgroundColor: Colors.redAccent,
           ),
         );
@@ -82,142 +110,7 @@ class _MapScreenState extends State<MapScreen> {
 
     return Column(
       children: [
-        // Simulated Interactive Map Canvas
-        Expanded(
-          flex: 5,
-          child: Stack(
-            children: [
-              // Map Background grids and visuals
-              GestureDetector(
-                onPanUpdate: (details) {
-                  setState(() {
-                    _mapOffset += details.delta;
-                  });
-                },
-                child: Container(
-                  color: const Color(0xFFE8ECE9), // Soft green-gray map color
-                  child: CustomPaint(
-                    painter: MapGridPainter(
-                      offset: _mapOffset,
-                      zoom: _zoomLevel,
-                      locations: _locations,
-                      selectedId: _selectedLocation?.id,
-                    ),
-                    child: Container(),
-                  ),
-                ),
-              ),
-
-              // Zoom controls
-              Positioned(
-                right: 16,
-                top: 16,
-                child: Column(
-                  children: [
-                    FloatingActionButton.small(
-                      heroTag: "zoom_in",
-                      backgroundColor: Colors.white,
-                      foregroundColor: AppTheme.textPrimaryColor,
-                      child: const Icon(Icons.add),
-                      onPressed: () {
-                        setState(() {
-                          _zoomLevel = (_zoomLevel + 0.2).clamp(0.5, 3.0);
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    FloatingActionButton.small(
-                      heroTag: "zoom_out",
-                      backgroundColor: Colors.white,
-                      foregroundColor: AppTheme.textPrimaryColor,
-                      child: const Icon(Icons.remove),
-                      onPressed: () {
-                        setState(() {
-                          _zoomLevel = (_zoomLevel - 0.2).clamp(0.5, 3.0);
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ),
-
-              // Visual tip overlay
-              Positioned(
-                left: 16,
-                top: 16,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.touch_app, color: Colors.white, size: 14),
-                      SizedBox(width: 4),
-                      Text(
-                        "Drag to pan",
-                        style: TextStyle(color: Colors.white, fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              
-              // Interactive overlay pins
-              ..._locations.map((loc) {
-                // Map coordinates to simulated screen offsets
-                // We'll calculate a relative spacing based on HCM coordinate offsets
-                final relativeX = (loc.longitude - 106.68) * 12000;
-                final relativeY = -(loc.latitude - 107.75) * 12000;
-
-                final posX = (relativeX * _zoomLevel) + _mapOffset.dx + 180;
-                final posY = (relativeY * _zoomLevel) + _mapOffset.dy + 120;
-
-                final isSelected = _selectedLocation?.id == loc.id;
-
-                return Positioned(
-                  left: posX - 16,
-                  top: posY - 36,
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedLocation = loc;
-                      });
-                    },
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.location_on,
-                          color: isSelected ? AppTheme.primaryColor : Colors.grey.shade700,
-                          size: isSelected ? 36 : 28,
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: Colors.grey.shade300),
-                            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 2)],
-                          ),
-                          child: Text(
-                            loc.name.split('-').last.trim(),
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                              color: isSelected ? AppTheme.primaryColor : AppTheme.textPrimaryColor,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-            ],
-          ),
-        ),
+        Expanded(flex: 5, child: WebViewWidget(controller: _mapController)),
 
         // Bottom Info Drawer Card
         Expanded(
@@ -228,7 +121,11 @@ class _MapScreenState extends State<MapScreen> {
               color: Colors.white,
               borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               boxShadow: [
-                BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, -2)),
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 6,
+                  offset: Offset(0, -2),
+                ),
               ],
             ),
             child: _selectedLocation == null
@@ -249,7 +146,10 @@ class _MapScreenState extends State<MapScreen> {
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.green.shade50,
                               borderRadius: BorderRadius.circular(8),
@@ -268,7 +168,11 @@ class _MapScreenState extends State<MapScreen> {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          const Icon(Icons.location_on_outlined, color: AppTheme.textSecondaryColor, size: 18),
+                          const Icon(
+                            Icons.location_on_outlined,
+                            color: AppTheme.textSecondaryColor,
+                            size: 18,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -281,7 +185,11 @@ class _MapScreenState extends State<MapScreen> {
                       const SizedBox(height: 6),
                       Row(
                         children: [
-                          const Icon(Icons.access_time, color: AppTheme.textSecondaryColor, size: 18),
+                          const Icon(
+                            Icons.access_time,
+                            color: AppTheme.textSecondaryColor,
+                            size: 18,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             "Working Hours: ${_selectedLocation!.hours}",
@@ -292,7 +200,11 @@ class _MapScreenState extends State<MapScreen> {
                       const SizedBox(height: 6),
                       Row(
                         children: [
-                          const Icon(Icons.phone_outlined, color: AppTheme.textSecondaryColor, size: 18),
+                          const Icon(
+                            Icons.phone_outlined,
+                            color: AppTheme.textSecondaryColor,
+                            size: 18,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             "Hotline: ${_selectedLocation!.phone}",
@@ -306,12 +218,22 @@ class _MapScreenState extends State<MapScreen> {
                           Expanded(
                             child: OutlinedButton.icon(
                               style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: AppTheme.primaryColor),
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                side: const BorderSide(
+                                  color: AppTheme.primaryColor,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
                               onPressed: () => _callStore(_selectedLocation!),
-                              icon: const Icon(Icons.call, color: AppTheme.primaryColor, size: 18),
+                              icon: const Icon(
+                                Icons.call,
+                                color: AppTheme.primaryColor,
+                                size: 18,
+                              ),
                               label: const Text(
                                 "Call Store",
                                 style: TextStyle(color: AppTheme.primaryColor),
@@ -324,10 +246,15 @@ class _MapScreenState extends State<MapScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppTheme.primaryColor,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
-                              onPressed: () => _openInExternalMap(_selectedLocation!),
+                              onPressed: () =>
+                                  _openInExternalMap(_selectedLocation!),
                               icon: const Icon(Icons.navigation, size: 18),
                               label: const Text("Directions"),
                             ),
@@ -398,9 +325,15 @@ class MapGridPainter extends CustomPainter {
 
     // Road lines definition
     final roadPaths = <Path>[
-      Path()..moveTo(-500, 100)..lineTo(1200, 100),
-      Path()..moveTo(100, -200)..lineTo(100, 800),
-      Path()..moveTo(-200, 300)..lineTo(800, 300),
+      Path()
+        ..moveTo(-500, 100)
+        ..lineTo(1200, 100),
+      Path()
+        ..moveTo(100, -200)
+        ..lineTo(100, 800),
+      Path()
+        ..moveTo(-200, 300)
+        ..lineTo(800, 300),
     ];
 
     for (final path in roadPaths) {
@@ -412,10 +345,14 @@ class MapGridPainter extends CustomPainter {
     roadPaint.strokeWidth = 6;
     roadBorderPaint.strokeWidth = 8;
     final streetPaths = <Path>[
-      Path()..moveTo(-100, 0)..lineTo(500, 600),
-      Path()..moveTo(300, 0)..lineTo(-200, 500),
+      Path()
+        ..moveTo(-100, 0)
+        ..lineTo(500, 600),
+      Path()
+        ..moveTo(300, 0)
+        ..lineTo(-200, 500),
     ];
-    
+
     for (final path in streetPaths) {
       canvas.drawPath(path, roadBorderPaint);
       canvas.drawPath(path, roadPaint);
@@ -423,8 +360,20 @@ class MapGridPainter extends CustomPainter {
 
     // Draw green garden/parks blocks
     paint.color = const Color(0xFFCBE3CE);
-    canvas.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(180, -20, 150, 100), const Radius.circular(8)), paint);
-    canvas.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(-100, 150, 120, 80), const Radius.circular(8)), paint);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(180, -20, 150, 100),
+        const Radius.circular(8),
+      ),
+      paint,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(-100, 150, 120, 80),
+        const Radius.circular(8),
+      ),
+      paint,
+    );
 
     canvas.restore();
   }
