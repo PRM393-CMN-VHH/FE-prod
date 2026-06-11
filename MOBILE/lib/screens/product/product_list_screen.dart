@@ -195,7 +195,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                             Image.network(
                                               product.imageUrl,
                                               fit: BoxFit.cover,
-                                              errorBuilder: (_, __, ___) => const Center(
+                                              errorBuilder: (_, _, _) => const Center(
                                                 child: Icon(Icons.broken_image_outlined, size: 40),
                                               ),
                                             ),
@@ -392,7 +392,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           Text("Màu hoa", style: textTheme.titleMedium),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-            value: _selectedColor,
+            initialValue: _selectedColor,
             hint: const Text("Chọn màu"),
             decoration: const InputDecoration(
               contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -418,7 +418,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           // Toggle Switches
           SwitchListTile(
             title: const Text("Chỉ sản phẩm còn hàng"),
-            activeColor: AppTheme.primaryColor,
+            activeThumbColor: AppTheme.primaryColor,
             value: _onlyInStock,
             contentPadding: EdgeInsets.zero,
             onChanged: (val) {
@@ -429,7 +429,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           ),
           SwitchListTile(
             title: const Text("Sản phẩm đang giảm giá"),
-            activeColor: AppTheme.primaryColor,
+            activeThumbColor: AppTheme.primaryColor,
             value: _onlyPromo,
             contentPadding: EdgeInsets.zero,
             onChanged: (val) {

@@ -307,7 +307,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         itemCount: _relatedProducts.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 12),
+                        separatorBuilder: (_, _) => const SizedBox(width: 12),
                         itemBuilder: (context, index) {
                           final related = _relatedProducts[index];
                           return SizedBox(
@@ -331,7 +331,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                         related.imageUrl,
                                         width: double.infinity,
                                         fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) => Container(
+                                        errorBuilder: (_, _, _) => Container(
                                           color: Colors.grey.shade200,
                                           child: const Icon(Icons.broken_image_outlined),
                                         ),

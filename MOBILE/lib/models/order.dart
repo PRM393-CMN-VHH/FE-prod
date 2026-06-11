@@ -13,7 +13,10 @@ class OrderItem {
     required this.price,
   });
 
-  factory OrderItem.fromJson(Map<String, dynamic> json, [Product? fallbackProduct]) {
+  factory OrderItem.fromJson(
+    Map<String, dynamic> json, [
+    Product? fallbackProduct,
+  ]) {
     final int itemDetailId = json['orderDetailId'] ?? json['id'] ?? 0;
     Product prod;
     if (json['product'] != null && json['product'] is Map) {
@@ -26,7 +29,9 @@ class OrderItem {
     return OrderItem(
       id: itemDetailId,
       product: prod,
-      quantity: json['quantity'] is int ? json['quantity'] : int.parse((json['quantity'] ?? 0).toString()),
+      quantity: json['quantity'] is int
+          ? json['quantity']
+          : int.parse((json['quantity'] ?? 0).toString()),
       price: (json['price'] as num?)?.toDouble() ?? 0.0,
     );
   }
@@ -50,6 +55,7 @@ class OrderModel {
   final String paymentMethod;
   final String status;
   final String paymentStatus;
+  final String? paymentUrl;
   final DateTime createdAt;
   final List<OrderItem> items;
 
@@ -62,19 +68,25 @@ class OrderModel {
     required this.paymentMethod,
     required this.status,
     this.paymentStatus = '',
+    this.paymentUrl,
     required this.createdAt,
     required this.items,
   });
 
-  factory OrderModel.fromJson(Map<String, dynamic> json, List<OrderItem> items) {
+  factory OrderModel.fromJson(
+    Map<String, dynamic> json,
+    List<OrderItem> items,
+  ) {
     final int orderId = json['orderId'] ?? json['id'] ?? 0;
-    final double amt = (json['totalPrice'] as num? ?? json['total_amount'] as num? ?? 0).toDouble();
-    
+    final double amt =
+        (json['totalPrice'] as num? ?? json['total_amount'] as num? ?? 0)
+            .toDouble();
+
     // Fallback recipient from user object
     String name = json['recipient_name'] ?? '';
     String phone = json['recipient_phone'] ?? '';
     String addr = json['shipping_address'] ?? '';
-    
+
     if (json['user'] != null && json['user'] is Map) {
       final userMap = json['user'] as Map<String, dynamic>;
       if (name.isEmpty) name = userMap['fullName'] ?? '';
@@ -82,10 +94,13 @@ class OrderModel {
       if (addr.isEmpty) addr = userMap['address'] ?? '';
     }
 
-    final String pMethod = json['paymentMethod'] ?? json['payment_method'] ?? 'COD';
+    final String pMethod =
+        json['paymentMethod'] ?? json['payment_method'] ?? 'COD';
     final String ordStatus = json['orderStatus'] ?? json['status'] ?? 'Pending';
-    final String payStatus = json['paymentStatus'] ?? json['payment_status'] ?? '';
-    
+    final String payStatus =
+        json['paymentStatus'] ?? json['payment_status'] ?? '';
+    final String? paymentUrl = json['paymentUrl'] ?? json['payment_url'];
+
     DateTime cAt = DateTime.now();
     try {
       if (json['createdAt'] != null) {
@@ -104,6 +119,7 @@ class OrderModel {
       paymentMethod: pMethod,
       status: ordStatus,
       paymentStatus: payStatus,
+      paymentUrl: paymentUrl,
       createdAt: cAt,
       items: items,
     );
@@ -119,6 +135,7 @@ class OrderModel {
       'payment_method': paymentMethod,
       'status': status,
       'payment_status': paymentStatus,
+      'payment_url': paymentUrl,
       'created_at': createdAt.toIso8601String(),
     };
   }

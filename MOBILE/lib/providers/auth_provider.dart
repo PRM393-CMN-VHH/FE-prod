@@ -59,12 +59,31 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> requestOtp(String email) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _apiService.requestOtp(email: email);
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = _cleanError(e);
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<bool> signUp({
     required String email,
     required String password,
     required String name,
     required String phone,
     required String address,
+    required String otp,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -77,6 +96,7 @@ class AuthProvider extends ChangeNotifier {
         name: name,
         phone: phone,
         address: address,
+        otp: otp,
       );
       _isLoading = false;
       notifyListeners();

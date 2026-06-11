@@ -53,7 +53,7 @@ class _MainNavigationState extends State<MainNavigation> {
       const SupportScreen(),
     ];
     final titles = <String>[
-      "Tiệm Hoa Xnh",
+      "Tiệm Hoa Xinh",
       "Giỏ & Đơn hàng",
       "Hồ sơ",
       "Cửa hàng",
@@ -89,7 +89,7 @@ class _MainNavigationState extends State<MainNavigation> {
                 builder: (ctx) => AlertDialog(
                   title: const Text("Đăng xuất"),
                   content: const Text(
-                    "Bạn có chắc muốn đăng xuất khỏi Tiệm Hoa Xnh?",
+                    "Bạn có chắc muốn đăng xuất khỏi Tiệm Hoa Xinh?",
                   ),
                   actions: [
                     TextButton(

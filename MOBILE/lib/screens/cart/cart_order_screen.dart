@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:prm393/screens/cart/cart_screen.dart';
 import 'package:prm393/screens/order/order_screen.dart';
 import 'package:prm393/theme/app_theme.dart';
+import 'package:prm393/utils/payment_navigation_signal.dart';
 
 class CartOrderScreen extends StatefulWidget {
   const CartOrderScreen({super.key});
@@ -10,17 +11,26 @@ class CartOrderScreen extends StatefulWidget {
   State<CartOrderScreen> createState() => _CartOrderScreenState();
 }
 
-class _CartOrderScreenState extends State<CartOrderScreen> with SingleTickerProviderStateMixin {
+class _CartOrderScreenState extends State<CartOrderScreen>
+    with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  late final VoidCallback _paidOrdersListener;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _paidOrdersListener = () {
+      if (mounted) {
+        _tabController.animateTo(1);
+      }
+    };
+    paidOrdersRefreshSignal.addListener(_paidOrdersListener);
   }
 
   @override
   void dispose() {
+    paidOrdersRefreshSignal.removeListener(_paidOrdersListener);
     _tabController.dispose();
     super.dispose();
   }
@@ -42,10 +52,7 @@ class _CartOrderScreenState extends State<CartOrderScreen> with SingleTickerProv
         Expanded(
           child: TabBarView(
             controller: _tabController,
-            children: const [
-              CartScreen(),
-              OrderScreen(),
-            ],
+            children: const [CartScreen(), OrderScreen()],
           ),
         ),
       ],

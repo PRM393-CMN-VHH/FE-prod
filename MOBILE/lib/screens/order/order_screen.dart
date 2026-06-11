@@ -6,6 +6,7 @@ import 'package:prm393/providers/product_provider.dart';
 import 'package:prm393/screens/cart/vnpay_payment_screen.dart';
 import 'package:prm393/theme/app_theme.dart';
 import 'package:prm393/utils/currency_formatter.dart';
+import 'package:prm393/utils/payment_navigation_signal.dart';
 
 class OrderScreen extends StatefulWidget {
   const OrderScreen({super.key});
@@ -14,8 +15,10 @@ class OrderScreen extends StatefulWidget {
   State<OrderScreen> createState() => _OrderScreenState();
 }
 
-class _OrderScreenState extends State<OrderScreen> with SingleTickerProviderStateMixin {
+class _OrderScreenState extends State<OrderScreen>
+    with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  late final VoidCallback _paidOrdersListener;
 
   @override
   void initState() {
@@ -23,29 +26,56 @@ class _OrderScreenState extends State<OrderScreen> with SingleTickerProviderStat
     _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadOrders();
-      Provider.of<OrderProvider>(context, listen: false).loadTransactionHistory();
+      Provider.of<OrderProvider>(
+        context,
+        listen: false,
+      ).loadTransactionHistory();
     });
+    _paidOrdersListener = () {
+      if (!mounted) return;
+      _tabController.animateTo(1);
+      _loadOrders();
+      Provider.of<OrderProvider>(
+        context,
+        listen: false,
+      ).loadTransactionHistory();
+    };
+    paidOrdersRefreshSignal.addListener(_paidOrdersListener);
   }
 
   @override
   void dispose() {
+    paidOrdersRefreshSignal.removeListener(_paidOrdersListener);
     _tabController.dispose();
     super.dispose();
   }
 
   Future<void> _loadOrders() async {
-    final products = Provider.of<ProductProvider>(context, listen: false).products;
-    await Provider.of<OrderProvider>(context, listen: false).loadOrders(products);
+    final products = Provider.of<ProductProvider>(
+      context,
+      listen: false,
+    ).products;
+    await Provider.of<OrderProvider>(
+      context,
+      listen: false,
+    ).loadOrders(products);
   }
 
   Future<void> _cancelOrder(OrderModel order) async {
-    final products = Provider.of<ProductProvider>(context, listen: false).products;
+    final products = Provider.of<ProductProvider>(
+      context,
+      listen: false,
+    ).products;
     final orderProvider = Provider.of<OrderProvider>(context, listen: false);
     final ok = await orderProvider.cancelOrder(order.id, products);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(ok ? "Đã hủy đơn #${order.id}" : orderProvider.errorMessage ?? "Không thể hủy đơn"),
+        content: Text(
+          ok
+              ? "Đã hủy đơn #${order.id}"
+              : orderProvider.errorMessage ?? "Không thể hủy đơn",
+        ),
         backgroundColor: ok ? AppTheme.primaryColor : Colors.redAccent,
       ),
     );
@@ -58,20 +88,48 @@ class _OrderScreenState extends State<OrderScreen> with SingleTickerProviderStat
     if (paymentUrl == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(orderProvider.errorMessage ?? "Không thể tạo thanh toán"),
+          content: Text(
+            orderProvider.errorMessage ?? "Không thể tạo thanh toán",
+          ),
           backgroundColor: Colors.redAccent,
         ),
       );
       return;
     }
 
+    final orderNavigator = Navigator.of(context);
+    final orderMessenger = ScaffoldMessenger.of(context);
+
     await Navigator.push<String>(
       context,
       MaterialPageRoute(
         builder: (_) => VnpayPaymentScreen(
-          amount: order.totalAmount,
-          orderId: order.id.toString(),
           paymentUrl: paymentUrl,
+          onPaymentSuccess: (result) async {
+            orderNavigator.pop();
+            await _loadOrders();
+            await orderProvider.loadTransactionHistory();
+            if (!mounted) return;
+            _tabController.animateTo(1);
+            requestPaidOrdersView();
+            orderMessenger.showSnackBar(
+              const SnackBar(
+                content: Text("Thanh toán thành công!"),
+                backgroundColor: AppTheme.primaryColor,
+              ),
+            );
+          },
+          onPaymentFail: (error) {
+            orderNavigator.pop();
+            orderMessenger.showSnackBar(
+              SnackBar(
+                content: Text(
+                  "Thanh toán thất bại: ${error['message'] ?? 'Đã hủy'}",
+                ),
+                backgroundColor: Colors.redAccent,
+              ),
+            );
+          },
         ),
       ),
     );
@@ -140,11 +198,18 @@ class _OrderList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isLoading && orders.isEmpty) {
-      return const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor));
+      return const Center(
+        child: CircularProgressIndicator(color: AppTheme.primaryColor),
+      );
     }
 
     if (errorMessage != null && orders.isEmpty) {
-      return Center(child: Text(errorMessage!, style: const TextStyle(color: Colors.redAccent)));
+      return Center(
+        child: Text(
+          errorMessage!,
+          style: const TextStyle(color: Colors.redAccent),
+        ),
+      );
     }
 
     if (orders.isEmpty) {
@@ -155,7 +220,10 @@ class _OrderList extends StatelessWidget {
           children: const [
             SizedBox(height: 180),
             Center(
-              child: Text("Chưa có đơn hàng", style: TextStyle(color: AppTheme.textSecondaryColor)),
+              child: Text(
+                "Chưa có đơn hàng",
+                style: TextStyle(color: AppTheme.textSecondaryColor),
+              ),
             ),
           ],
         ),
@@ -168,13 +236,15 @@ class _OrderList extends StatelessWidget {
       child: ListView.separated(
         padding: const EdgeInsets.all(16),
         itemCount: orders.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        separatorBuilder: (_, _) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final order = orders[index];
-          final canCancel = onCancel != null &&
+          final canCancel =
+              onCancel != null &&
               order.paymentStatus.toLowerCase() != 'paid' &&
               order.status.toLowerCase() != 'cancelled';
-          final canRepay = onRepay != null && order.paymentStatus.toLowerCase() != 'paid';
+          final canRepay =
+              onRepay != null && order.paymentStatus.toLowerCase() != 'paid';
 
           return Card(
             elevation: 0,
@@ -190,7 +260,10 @@ class _OrderList extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text("Đơn #${order.id}", style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        "Đơn #${order.id}",
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       Text(
                         order.status,
                         style: const TextStyle(
@@ -201,15 +274,23 @@ class _OrderList extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Text("Thanh toán: ${order.paymentMethod} ${order.paymentStatus.isEmpty ? '' : '(${order.paymentStatus})'}"),
+                  Text(
+                    "Thanh toán: ${order.paymentMethod} ${order.paymentStatus.isEmpty ? '' : '(${order.paymentStatus})'}",
+                  ),
                   const SizedBox(height: 4),
                   Text("Tổng tiền: ${formatVnd(order.totalAmount)}"),
                   if (order.items.isNotEmpty) ...[
                     const Divider(height: 24),
-                    ...order.items.take(3).map((item) => Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Text("${item.product.name} x${item.quantity}"),
-                        )),
+                    ...order.items
+                        .take(3)
+                        .map(
+                          (item) => Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text(
+                              "${item.product.name} x${item.quantity}",
+                            ),
+                          ),
+                        ),
                   ],
                   if (canCancel || canRepay) ...[
                     const SizedBox(height: 12),
@@ -224,7 +305,10 @@ class _OrderList extends StatelessWidget {
                         if (canCancel)
                           TextButton(
                             onPressed: () => onCancel!(order),
-                            child: const Text("Hủy đơn", style: TextStyle(color: Colors.redAccent)),
+                            child: const Text(
+                              "Hủy đơn",
+                              style: TextStyle(color: Colors.redAccent),
+                            ),
                           ),
                       ],
                     ),

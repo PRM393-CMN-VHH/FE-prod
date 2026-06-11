@@ -8,6 +8,7 @@ import 'package:prm393/theme/app_theme.dart';
 import 'package:prm393/screens/cart/vnpay_payment_screen.dart';
 import 'package:prm393/utils/currency_formatter.dart';
 import 'package:prm393/utils/error_translator.dart';
+import 'package:prm393/utils/payment_navigation_signal.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -18,7 +19,7 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final _formKey = GlobalKey<FormState>();
-  
+
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
@@ -89,7 +90,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(orderProv.errorMessage ?? "Không thể tạo đơn thanh toán VNPAY. Vui lòng thử lại."),
+              content: Text(
+                orderProv.errorMessage ??
+                    "Không thể tạo đơn thanh toán VNPAY. Vui lòng thử lại.",
+              ),
               backgroundColor: Colors.redAccent,
             ),
           );
@@ -97,15 +101,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         return;
       }
 
-      final paymentUrl = await orderProv.getVnpayUrl(
-        amount: order.totalAmount,
-        orderId: order.id.toString(),
-      );
+      final paymentUrl =
+          order.paymentUrl ??
+          await orderProv.getVnpayUrl(
+            amount: order.totalAmount,
+            orderId: order.id.toString(),
+          );
 
       if (paymentUrl == null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(orderProv.errorMessage ?? "Không thể mở thanh toán VNPAY. Vui lòng thử lại."),
+            content: Text(
+              orderProv.errorMessage ??
+                  "Không thể mở thanh toán VNPAY. Vui lòng thử lại.",
+            ),
             backgroundColor: Colors.redAccent,
           ),
         );
@@ -113,45 +122,57 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       }
 
       if (mounted) {
-        final String? resultCode = await Navigator.push<String>(
-          context,
+        final checkoutContext = context;
+        final checkoutNavigator = Navigator.of(checkoutContext);
+        final checkoutMessenger = ScaffoldMessenger.of(checkoutContext);
+
+        Navigator.push(
+          checkoutContext,
           MaterialPageRoute(
-            builder: (context) => VnpayPaymentScreen(
-              amount: order.totalAmount,
-              orderId: order.id.toString(),
+            builder: (_) => VnpayPaymentScreen(
               paymentUrl: paymentUrl!,
+              onPaymentSuccess: (result) async {
+                checkoutNavigator.pop(); // Đóng WebView
+                await cartProv.clearCart();
+                await orderProv.loadTransactionHistory();
+                requestPaidOrdersView();
+                if (mounted) {
+                  showDialog(
+                    context: checkoutContext,
+                    barrierDismissible: false,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text("Thanh toán thành công!"),
+                      content: Text(
+                        "Giao dịch VNPay cho đơn hàng ${order.id} đã hoàn tất.",
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => checkoutNavigator.popUntil(
+                            (route) => route.isFirst,
+                          ),
+                          child: const Text("Về trang chủ"),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+              },
+              onPaymentFail: (error) {
+                checkoutNavigator.pop(); // Đóng WebView
+                if (mounted) {
+                  checkoutMessenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        "Thanh toán thất bại: ${error['message'] ?? 'Đã hủy'}",
+                      ),
+                      backgroundColor: Colors.redAccent,
+                    ),
+                  );
+                }
+              },
             ),
           ),
         );
-
-        if (resultCode == '00') {
-          await cartProv.clearCart();
-          if (mounted) {
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (ctx) => AlertDialog(
-                title: const Text("Payment Submitted"),
-                content: const Text("Your VNPAY payment has been submitted. Backend will confirm the payment status from the VNPAY return callback."),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
-                    child: const Text("Back to Home"),
-                  ),
-                ],
-              ),
-            );
-          }
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("VNPAY transaction was cancelled or failed"),
-                backgroundColor: Colors.orangeAccent,
-              ),
-            );
-          }
-        }
       }
     } else {
       // Standard COD/Bank transfer flow
@@ -163,15 +184,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final cartProv = Provider.of<CartProvider>(context, listen: false);
     final orderProv = Provider.of<OrderProvider>(context, listen: false);
 
-    final success = await orderProv.placeOrder(
-      recipientName: _nameController.text.trim(),
-      recipientPhone: _phoneController.text.trim(),
-      shippingAddress: _addressController.text.trim(),
-      paymentMethod: _paymentMethod,
-      totalAmount: cartProv.totalAmount,
-      cartItems: cartProv.items,
-      status: orderStatus,
-    ) != null;
+    final success =
+        await orderProv.placeOrder(
+          recipientName: _nameController.text.trim(),
+          recipientPhone: _phoneController.text.trim(),
+          shippingAddress: _addressController.text.trim(),
+          paymentMethod: _paymentMethod,
+          totalAmount: cartProv.totalAmount,
+          cartItems: cartProv.items,
+          status: orderStatus,
+        ) !=
+        null;
 
     if (success && mounted) {
       // Clear the local cart
@@ -186,7 +209,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           content: Text(
             orderStatus == "Paid (VNPAY)"
                 ? "Your payment via VNPAY was successful! We have sent a confirmation alert to your Notifications inbox."
-                : "Your purchase was successful. We have sent a confirmation details alert to your Notifications inbox."
+                : "Your purchase was successful. We have sent a confirmation details alert to your Notifications inbox.",
           ),
           actions: [
             TextButton(
@@ -202,7 +225,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(orderProv.errorMessage ?? "Không thể tạo đơn hàng. Vui lòng thử lại."),
+          content: Text(
+            orderProv.errorMessage ??
+                "Không thể tạo đơn hàng. Vui lòng thử lại.",
+          ),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -216,9 +242,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Thanh toán"),
-      ),
+      appBar: AppBar(title: const Text("Thanh toán")),
       body: orderProv.isLoading
           ? const Center(
               child: CircularProgressIndicator(color: AppTheme.primaryColor),
@@ -232,7 +256,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   children: [
                     // Order Summary section
                     if (_checkoutError != null) ...[
-                      Text(_checkoutError!, style: const TextStyle(color: Colors.redAccent)),
+                      Text(
+                        _checkoutError!,
+                        style: const TextStyle(color: Colors.redAccent),
+                      ),
                       const SizedBox(height: 12),
                     ],
                     Text("Tóm tắt đơn hàng", style: textTheme.titleLarge),
@@ -248,11 +275,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         child: Column(
                           children: [
                             ...cartProv.items.map((item) {
-                              final itemPrice = item.product.promoPrice ?? item.product.price;
+                              final itemPrice =
+                                  item.product.promoPrice ?? item.product.price;
                               return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 4,
+                                ),
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Expanded(
                                       child: Text(
@@ -263,7 +294,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                     ),
                                     Text(
                                       formatVnd(itemPrice * item.quantity),
-                                      style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                                      style: textTheme.bodyMedium?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -273,20 +306,39 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text("Tạm tính", style: TextStyle(color: AppTheme.textSecondaryColor)),
-                                Text(formatVnd(cartProv.subtotalAmount), style: textTheme.bodyMedium),
+                                const Text(
+                                  "Tạm tính",
+                                  style: TextStyle(
+                                    color: AppTheme.textSecondaryColor,
+                                  ),
+                                ),
+                                Text(
+                                  formatVnd(cartProv.subtotalAmount),
+                                  style: textTheme.bodyMedium,
+                                ),
                               ],
                             ),
                             const SizedBox(height: 4),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text("Phí giao hàng", style: TextStyle(color: AppTheme.textSecondaryColor)),
-                                Text(
-                                  cartProv.shippingFee == 0.0 ? "Miễn phí" : formatVnd(cartProv.shippingFee),
+                                const Text(
+                                  "Phí giao hàng",
                                   style: TextStyle(
-                                    color: cartProv.shippingFee == 0.0 ? Colors.green : AppTheme.textPrimaryColor,
-                                    fontWeight: cartProv.shippingFee == 0.0 ? FontWeight.bold : FontWeight.normal,
+                                    color: AppTheme.textSecondaryColor,
+                                  ),
+                                ),
+                                Text(
+                                  cartProv.shippingFee == 0.0
+                                      ? "Miễn phí"
+                                      : formatVnd(cartProv.shippingFee),
+                                  style: TextStyle(
+                                    color: cartProv.shippingFee == 0.0
+                                        ? Colors.green
+                                        : AppTheme.textPrimaryColor,
+                                    fontWeight: cartProv.shippingFee == 0.0
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
                                   ),
                                 ),
                               ],
@@ -295,7 +347,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text("Tổng cộng", style: TextStyle(fontWeight: FontWeight.bold)),
+                                const Text(
+                                  "Tổng cộng",
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
                                 Text(
                                   formatVnd(cartProv.totalAmount),
                                   style: textTheme.titleMedium?.copyWith(
@@ -393,7 +448,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           ),
                           const Divider(height: 1, indent: 16, endIndent: 16),
                           RadioListTile<String>(
-                            title: const Text("Thanh toán qua VNPAY (ATM/Ngân hàng)"),
+                            title: const Text(
+                              "Thanh toán qua VNPAY (ATM/Ngân hàng)",
+                            ),
                             value: 'VNPAY',
                             groupValue: _paymentMethod,
                             activeColor: AppTheme.primaryColor,
@@ -411,7 +468,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       const SizedBox(height: 8),
                       Text(
                         ErrorTranslator.userMessage(orderProv.errorMessage!),
-                        style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+                        style: const TextStyle(
+                          color: Colors.redAccent,
+                          fontSize: 13,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ],

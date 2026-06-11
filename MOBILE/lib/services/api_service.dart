@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -24,22 +23,17 @@ class ApiService {
   // API URL CONSTANTS & CONFIGURATIONS
   // ==========================================
 
-  // Base URLs
   static String get backendBaseUrl {
     if (kIsWeb) {
       return "http://localhost:3636";
     }
-    try {
-      if (Platform.isAndroid) {
-        return "http://10.0.2.2:3636";
-      }
-    } catch (_) {}
-    return "http://192.168.1.51:3636";
+    return "http://192.168.1.77:3636";
   }
 
   // Auth Routes
   static String get apiSignIn => "$backendBaseUrl/login";
   static String get apiSignUp => "$backendBaseUrl/register";
+  static String get apiRequestOtp => "$backendBaseUrl/register/request-otp";
   static String get apiSignOut => "$backendBaseUrl/logout";
   static String get apiCurrentUser => "$backendBaseUrl/api/users/me";
   static String get apiProfile => "$backendBaseUrl/profile";
@@ -94,14 +88,19 @@ class ApiService {
   static String get apiAdminUserDeactivate =>
       "$backendBaseUrl/admin/users/deactivate";
 
-  // Payment Gateway Routes
-  static const String vnpaySandboxUrl =
-      "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
-
   SupabaseClient? _supabase;
   bool get isSupabaseInitialized => _supabase != null;
 
   String? _sessionCookie;
+
+  String _backendUrl(String pathOrUrl) {
+    final uri = Uri.tryParse(pathOrUrl);
+    if (uri != null && uri.hasScheme) {
+      return pathOrUrl;
+    }
+    final path = pathOrUrl.startsWith('/') ? pathOrUrl : '/$pathOrUrl';
+    return "$backendBaseUrl$path";
+  }
 
   void _updateCookie(http.Response response) {
     final rawCookie =
@@ -253,7 +252,7 @@ class ApiService {
   final List<StoreLocation> _mockLocations = [
     StoreLocation(
       id: 1,
-      name: "Tiệm Hoa Xnh - District 1",
+      name: "Tiệm Hoa Xinh - District 1",
       address: "456 Hai Ba Trung, District 1, Ho Chi Minh City",
       phone: "0909 789 000",
       hours: "07:00 - 20:00",
@@ -262,7 +261,7 @@ class ApiService {
     ),
     StoreLocation(
       id: 2,
-      name: "Tiệm Hoa Xnh - District 3",
+      name: "Tiệm Hoa Xinh - District 3",
       address: "123 Nguyen Dinh Chieu, District 3, Ho Chi Minh City",
       phone: "0909 789 001",
       hours: "08:00 - 21:00",
@@ -290,14 +289,23 @@ class ApiService {
   // AUTHENTICATION APIs
   // ==========================================
 
+  Future<void> requestOtp({required String email}) async {
+    try {
+      await postRequest(apiRequestOtp, {"email": email});
+    } catch (e) {
+      throw Exception(_friendlyRequestError(e));
+    }
+  }
+
   Future<UserModel> signUp({
     required String email,
     required String password,
     required String name,
     required String phone,
     required String address,
+    required String otp,
   }) async {
-    final response = await postRequest(apiSignUp, {
+    final response = await postRequest("$apiSignUp?otp=$otp", {
       "fullName": name,
       "phoneNumber": phone,
       "address": address,
@@ -592,7 +600,7 @@ class ApiService {
     final response = await postEmptyRequest("$apiOrderPay/$orderId");
     if (response is Map && response['redirectUrl'] is String) {
       final redirectUrl = response['redirectUrl'] as String;
-      final paymentResponse = await getRequest("$backendBaseUrl$redirectUrl");
+      final paymentResponse = await getRequest(_backendUrl(redirectUrl));
       if (paymentResponse is Map && paymentResponse['paymentUrl'] is String) {
         return paymentResponse['paymentUrl'] as String;
       }
@@ -628,29 +636,17 @@ class ApiService {
     required String orderId,
     String ipAddress = '127.0.0.1',
   }) async {
-    try {
-      final response = await getRequest(
-        "$apiPaymentCreate?orderId=$orderId&amount=${amount.toInt()}",
-      );
-      if (response is Map && response.containsKey('paymentUrl')) {
-        return response['paymentUrl'] as String;
-      }
-    } catch (_) {}
-
-    final amountInVnd = amount.toInt();
-    return "$vnpaySandboxUrl"
-        "?vnp_Amount=$amountInVnd"
-        "&vnp_Command=pay"
-        "&vnp_CreateDate=${DateTime.now().millisecondsSinceEpoch}"
-        "&vnp_CurrCode=VND"
-        "&vnp_IpAddr=$ipAddress"
-        "&vnp_Locale=vn"
-        "&vnp_OrderInfo=Thanh+toan+don+hang+$orderId"
-        "&vnp_OrderType=other"
-        "&vnp_ReturnUrl=http%3A%2F%2F192.168.1.51%3A3636%2Fpayment%2FvnpayReturn"
-        "&vnp_TmnCode=DEMO0001"
-        "&vnp_TxnRef=$orderId"
-        "&vnp_Version=2.1.0";
+    final uri = Uri.parse(apiPaymentCreate).replace(
+      queryParameters: {
+        'orderId': orderId,
+        'amount': amount.toInt().toString(),
+      },
+    );
+    final response = await getRequest(uri.toString());
+    if (response is Map && response['paymentUrl'] is String) {
+      return response['paymentUrl'] as String;
+    }
+    throw Exception("Không thể tạo liên kết thanh toán VNPay từ máy chủ");
   }
 
   Future<OrderModel> createOrder({
@@ -672,6 +668,24 @@ class ApiService {
       throw Exception("Invalid place order response from server");
     }
 
+    String? paymentUrl;
+    if (paymentMethod == "VNPAY") {
+      if (response['paymentUrl'] is String) {
+        paymentUrl = response['paymentUrl'] as String;
+      } else if (response['redirectUrl'] is String) {
+        final paymentResponse = await getRequest(
+          _backendUrl(response['redirectUrl'] as String),
+        );
+        if (paymentResponse is Map && paymentResponse['paymentUrl'] is String) {
+          paymentUrl = paymentResponse['paymentUrl'] as String;
+        }
+      }
+
+      if (paymentUrl == null || paymentUrl.isEmpty) {
+        throw Exception("Không thể tạo liên kết thanh toán VNPay từ máy chủ");
+      }
+    }
+
     final orderItems = cartItems
         .map(
           (c) => OrderItem(
@@ -683,10 +697,14 @@ class ApiService {
         )
         .toList();
 
-    final order = OrderModel.fromJson(
+    final orderPayload = Map<String, dynamic>.from(
       response['order'] as Map<String, dynamic>,
-      orderItems,
     );
+    if (paymentUrl != null) {
+      orderPayload['paymentUrl'] = paymentUrl;
+    }
+
+    final order = OrderModel.fromJson(orderPayload, orderItems);
 
     await addNotification(
       title: "Order Placed",
@@ -729,8 +747,9 @@ class ApiService {
     final query = <String, String>{'pageNo': pageNo.toString()};
     if (email != null && email.isNotEmpty) query['email'] = email;
     if (status != null && status.isNotEmpty) query['status'] = status;
-    if (startDate != null && startDate.isNotEmpty)
+    if (startDate != null && startDate.isNotEmpty) {
       query['startDate'] = startDate;
+    }
     if (endDate != null && endDate.isNotEmpty) query['endDate'] = endDate;
     final response = await getRequest(
       Uri.parse(apiAdminOrders).replace(queryParameters: query).toString(),
@@ -865,7 +884,7 @@ class ApiService {
       final defaultNotifs = [
         NotificationModel(
           id: 1,
-          title: "Welcome to Tiệm Hoa Xnh",
+          title: "Welcome to Tiệm Hoa Xinh",
           content:
               "Get fresh blossoms delivered to your door. Log in and discover premium floral catalogs.",
           timestamp: DateTime.now().subtract(const Duration(hours: 4)),
@@ -937,7 +956,7 @@ class ApiService {
         MessageModel(
           id: 1,
           content:
-              "Welcome to Tiệm Hoa Xnh! Let us know if you have questions regarding flower care, delivery options, or boutique options. We are here to assist.",
+              "Welcome to Tiệm Hoa Xinh! Let us know if you have questions regarding flower care, delivery options, or boutique options. We are here to assist.",
           sender: "store",
           timestamp: DateTime.now().subtract(const Duration(minutes: 5)),
         ),

@@ -41,33 +41,95 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    bool success;
 
     if (_isSignUp) {
-      success = await authProvider.signUp(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-        name: _nameController.text.trim(),
-        phone: _phoneController.text.trim(),
-        address: _addressController.text.trim(),
-      );
+      final successReq = await authProvider.requestOtp(_emailController.text.trim());
+      if (successReq && mounted) {
+        _showOtpDialog(authProvider);
+      }
     } else {
-      success = await authProvider.signIn(
+      final success = await authProvider.signIn(
         _emailController.text.trim(),
         _passwordController.text,
       );
-    }
 
-    if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _isSignUp ? "Registration successful!" : "Login successful!",
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Login successful!"),
+            backgroundColor: AppTheme.primaryColor,
           ),
-          backgroundColor: AppTheme.primaryColor,
-        ),
-      );
+        );
+      }
     }
+  }
+
+  void _showOtpDialog(AuthProvider authProvider) {
+    final otpController = TextEditingController();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Xác thực OTP"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text("Mã OTP gồm 6 chữ số đã được gửi đến email của bạn."),
+              const SizedBox(height: 16),
+              TextField(
+                controller: otpController,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                decoration: const InputDecoration(
+                  labelText: "Nhập OTP",
+                  prefixIcon: Icon(Icons.security),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Hủy"),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final otp = otpController.text.trim();
+                if (otp.length != 6) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Vui lòng nhập đủ 6 số OTP")),
+                  );
+                  return;
+                }
+                
+                // Close dialog
+                Navigator.pop(context);
+                
+                final success = await authProvider.signUp(
+                  email: _emailController.text.trim(),
+                  password: _passwordController.text,
+                  name: _nameController.text.trim(),
+                  phone: _phoneController.text.trim(),
+                  address: _addressController.text.trim(),
+                  otp: otp,
+                );
+
+                if (success && mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Registration successful!"),
+                      backgroundColor: AppTheme.primaryColor,
+                    ),
+                  );
+                }
+              },
+              child: const Text("Xác thực & Đăng ký"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -94,7 +156,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    "Tiệm Hoa Xnh",
+                    "Tiệm Hoa Xinh",
                     textAlign: TextAlign.center,
                     style: textTheme.headlineLarge?.copyWith(
                       color: AppTheme.primaryColor,
