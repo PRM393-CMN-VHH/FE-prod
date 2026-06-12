@@ -1,4 +1,12 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:prm393/providers/toast_provider.dart';
+
 class ErrorTranslator {
+  static void showTopToast(BuildContext context, String message, {bool isError = true}) {
+    Provider.of<ToastProvider>(context, listen: false).show(message, isError: isError);
+  }
+
   static String userMessage(Object error) {
     var message = error.toString();
     var previous = '';

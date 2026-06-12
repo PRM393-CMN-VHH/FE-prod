@@ -4,6 +4,7 @@ import 'package:prm393/providers/cart_provider.dart';
 import 'package:prm393/screens/cart/checkout_screen.dart';
 import 'package:prm393/theme/app_theme.dart';
 import 'package:prm393/utils/currency_formatter.dart';
+import 'package:prm393/utils/error_translator.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
@@ -122,11 +123,9 @@ class CartScreen extends StatelessWidget {
                             onPressed: () async {
                               final ok = await cartProvider.removeFromCart(item.id);
                               if (!ok && context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(cartProvider.errorMessage ?? "Không thể xóa sản phẩm. Vui lòng thử lại."),
-                                    backgroundColor: Colors.redAccent,
-                                  ),
+                                ErrorTranslator.showTopToast(
+                                  context,
+                                  cartProvider.errorMessage ?? "Không thể xóa sản phẩm. Vui lòng thử lại.",
                                 );
                               }
                             },
@@ -145,11 +144,9 @@ class CartScreen extends StatelessWidget {
                                   onPressed: () async {
                                     final ok = await cartProvider.updateQuantity(item.id, item.quantity - 1);
                                     if (!ok && context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text(cartProvider.errorMessage ?? "Không thể cập nhật số lượng. Vui lòng thử lại."),
-                                          backgroundColor: Colors.redAccent,
-                                        ),
+                                      ErrorTranslator.showTopToast(
+                                        context,
+                                        cartProvider.errorMessage ?? "Không thể cập nhật số lượng. Vui lòng thử lại.",
                                       );
                                     }
                                   },
@@ -166,19 +163,15 @@ class CartScreen extends StatelessWidget {
                                     if (item.quantity < product.stock) {
                                       final ok = await cartProvider.updateQuantity(item.id, item.quantity + 1);
                                       if (!ok && context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text(cartProvider.errorMessage ?? "Không thể cập nhật số lượng. Vui lòng thử lại."),
-                                            backgroundColor: Colors.redAccent,
-                                          ),
+                                        ErrorTranslator.showTopToast(
+                                          context,
+                                          cartProvider.errorMessage ?? "Không thể cập nhật số lượng. Vui lòng thử lại.",
                                         );
                                       }
                                     } else {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text("Không thể vượt quá số lượng tồn kho"),
-                                          duration: Duration(seconds: 1),
-                                        ),
+                                      ErrorTranslator.showTopToast(
+                                        context,
+                                        "Không thể vượt quá số lượng tồn kho",
                                       );
                                     }
                                   },

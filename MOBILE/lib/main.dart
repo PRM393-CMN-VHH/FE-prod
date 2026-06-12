@@ -6,6 +6,7 @@ import 'package:prm393/providers/cart_provider.dart';
 import 'package:prm393/providers/order_provider.dart';
 import 'package:prm393/providers/notification_provider.dart';
 import 'package:prm393/providers/chat_provider.dart';
+import 'package:prm393/providers/toast_provider.dart';
 import 'package:prm393/screens/auth/login_screen.dart';
 import 'package:prm393/screens/main_navigation.dart';
 import 'package:prm393/services/api_service.dart';
@@ -13,10 +14,6 @@ import 'package:prm393/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize Supabase. Add your Supabase credentials here if you connect a real database backend.
-  // Example: ApiService().initializeSupabase(url: 'https://xxx.supabase.co', anonKey: 'eyJhbGciOi...');
-  // Leaving it empty defaults the app to a robust offline mock database state.
   await ApiService().initializeSupabase(url: '', anonKey: '');
 
   runApp(const MyApp());
@@ -35,6 +32,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => OrderProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
+        ChangeNotifierProvider(create: (_) => ToastProvider()),
       ],
       child: MaterialApp(
         title: 'Tiệm Hoa Xnh',

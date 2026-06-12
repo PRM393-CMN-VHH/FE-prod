@@ -194,9 +194,7 @@ class _AdminOrdersTabState extends State<_AdminOrdersTab> {
         status: status,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Đã cập nhật trạng thái")));
+      ErrorTranslator.showTopToast(context, "Đã cập nhật trạng thái", isError: false);
       _refresh();
     } catch (e) {
       if (!mounted) return;
@@ -1093,10 +1091,5 @@ class _ErrorState extends StatelessWidget {
 }
 
 void _showError(BuildContext context, Object error) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(ErrorTranslator.userMessage(error)),
-      backgroundColor: Colors.redAccent,
-    ),
-  );
+  ErrorTranslator.showTopToast(context, ErrorTranslator.userMessage(error));
 }

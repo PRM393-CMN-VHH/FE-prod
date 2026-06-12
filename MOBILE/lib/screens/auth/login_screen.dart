@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:prm393/providers/auth_provider.dart';
 import 'package:prm393/theme/app_theme.dart';
+import 'package:prm393/utils/error_translator.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -54,12 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Đăng nhập thành công!"),
-            backgroundColor: AppTheme.primaryColor,
-          ),
-        );
+        ErrorTranslator.showTopToast(context, "Đăng nhập thành công!", isError: false);
       }
     }
   }
@@ -116,12 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 );
 
                 if (success && mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Đăng ký thành công!"),
-                      backgroundColor: AppTheme.primaryColor,
-                    ),
-                  );
+                  ErrorTranslator.showTopToast(context, "Đăng ký thành công!", isError: false);
                 }
               },
               child: const Text("Xác thực & Đăng ký"),

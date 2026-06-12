@@ -660,6 +660,10 @@ class ApiService {
     await postEmptyRequest("$apiOrderCancel/$orderId");
   }
 
+  Future<void> deleteOrder(int orderId) async {
+    await deleteRequest("${apiOrders.replaceFirst('/my-orders', '/delete')}/$orderId");
+  }
+
   Future<List<OrderModel>> getTransactionHistory() async {
     final response = await getRequest(apiTransactionHistory);
     if (response is List) {

@@ -77,6 +77,24 @@ class OrderProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> deleteOrder(int orderId, List<Product> products) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _apiService.deleteOrder(orderId);
+      _orders.removeWhere((o) => o.id == orderId);
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = ErrorTranslator.userMessage(e);
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<void> loadTransactionHistory() async {
     _isLoading = true;
     _errorMessage = null;
