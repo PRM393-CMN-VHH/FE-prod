@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:prm393/utils/error_translator.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:prm393/models/store_location.dart';
 import 'package:prm393/services/api_service.dart';
@@ -78,12 +79,7 @@ class _MapScreenState extends State<MapScreen> {
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Không thể mở ứng dụng bản đồ"),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        ErrorTranslator.showTopToast(context, "Không thể mở ứng dụng bản đồ");
       }
     }
   }

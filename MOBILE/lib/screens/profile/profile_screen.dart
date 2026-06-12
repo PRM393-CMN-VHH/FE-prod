@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:prm393/providers/auth_provider.dart';
 import 'package:prm393/theme/app_theme.dart';
 
+import 'package:prm393/utils/error_translator.dart';
+
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -45,11 +47,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       address: _addressController.text.trim(),
     );
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(ok ? "Đã cập nhật hồ sơ" : authProvider.errorMessage ?? "Không thể cập nhật hồ sơ"),
-        backgroundColor: ok ? AppTheme.primaryColor : Colors.redAccent,
-      ),
+    ErrorTranslator.showTopToast(
+      context,
+      ok ? "Đã cập nhật hồ sơ" : authProvider.errorMessage ?? "Không thể cập nhật hồ sơ",
+      isError: !ok,
     );
   }
 

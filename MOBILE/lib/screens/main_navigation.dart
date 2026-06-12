@@ -5,6 +5,7 @@ import 'package:prm393/providers/cart_provider.dart';
 import 'package:prm393/providers/notification_provider.dart';
 import 'package:prm393/providers/product_provider.dart';
 import 'package:prm393/providers/chat_provider.dart';
+import 'package:prm393/providers/toast_provider.dart';
 import 'package:prm393/screens/admin/admin_screen.dart';
 import 'package:prm393/screens/product/product_list_screen.dart';
 import 'package:prm393/screens/cart/cart_order_screen.dart';
@@ -82,6 +83,54 @@ class _MainNavigationState extends State<MainNavigation> {
               ),
             ),
           ],
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(0),
+          child: Consumer<ToastProvider>(
+            builder: (context, toast, _) {
+              if (toast.message == null) return const SizedBox.shrink();
+              return Material(
+                elevation: 4,
+                child: Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  color:
+                      toast.isError ? Colors.redAccent : AppTheme.primaryColor,
+                  child: Row(
+                    children: [
+                      Icon(
+                        toast.isError
+                            ? Icons.error_outline
+                            : Icons.check_circle_outline,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          toast.message!,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: toast.clear,
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
         ),
         actions: [
           IconButton(

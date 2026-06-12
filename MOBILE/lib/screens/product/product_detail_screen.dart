@@ -72,28 +72,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     final added = await cartProv.addToCart(_product, _quantity);
     if (!added && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(cartProv.errorMessage ?? "Không thể thêm sản phẩm vào giỏ. Vui lòng thử lại."),
-          backgroundColor: Colors.redAccent,
-        ),
+      ErrorTranslator.showTopToast(
+        context,
+        cartProv.errorMessage ?? "Không thể thêm sản phẩm vào giỏ. Vui lòng thử lại.",
       );
       return;
     }
     
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Đã thêm $_quantity x ${_product.name} vào giỏ hàng"),
-          backgroundColor: AppTheme.primaryColor,
-          action: SnackBarAction(
-            label: "Xem giỏ",
-            textColor: Colors.white,
-            onPressed: () {
-              Navigator.pop(context); // Go back to Home and switch to Cart tab manually (or just return)
-            },
-          ),
-        ),
+      ErrorTranslator.showTopToast(
+        context,
+        "Đã thêm $_quantity x ${_product.name} vào giỏ hàng",
+        isError: false,
       );
       
       // Trigger a brief notification milestone

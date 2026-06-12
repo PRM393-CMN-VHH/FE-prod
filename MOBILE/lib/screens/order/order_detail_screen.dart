@@ -39,16 +39,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         status: status,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Cập nhật trạng thái thành công!")),
-        );
+        ErrorTranslator.showTopToast(context, "Cập nhật trạng thái thành công!", isError: false);
         _refresh();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(ErrorTranslator.userMessage(e))),
-        );
+        ErrorTranslator.showTopToast(context, ErrorTranslator.userMessage(e));
       }
     }
   }

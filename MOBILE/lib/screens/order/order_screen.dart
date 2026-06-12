@@ -7,6 +7,7 @@ import 'package:prm393/screens/order/order_detail_screen.dart';
 import 'package:prm393/screens/cart/vnpay_payment_screen.dart';
 import 'package:prm393/theme/app_theme.dart';
 import 'package:prm393/utils/currency_formatter.dart';
+import 'package:prm393/utils/error_translator.dart';
 import 'package:prm393/utils/payment_navigation_signal.dart';
 
 class OrderScreen extends StatefulWidget {
@@ -63,12 +64,12 @@ class _OrderScreenState extends State<OrderScreen>
   }
 
   Future<void> _cancelOrder(OrderModel order) async {
-    // Thêm hộp thoại xác nhận
+    // Thêm hộp thoại xác nhận xóa
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Xác nhận hủy"),
-        content: Text("Bạn có chắc chắn muốn hủy đơn hàng #${order.id} không?"),
+        title: const Text("Xác nhận xóa"),
+        content: Text("Bạn có chắc chắn muốn xóa vĩnh viễn đơn hàng #${order.id} không? Thao tác này không thể hoàn tác."),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -76,7 +77,7 @@ class _OrderScreenState extends State<OrderScreen>
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text("Đồng ý hủy", style: TextStyle(color: Colors.redAccent)),
+            child: const Text("Đồng ý xóa", style: TextStyle(color: Colors.redAccent)),
           ),
         ],
       ),
@@ -89,17 +90,14 @@ class _OrderScreenState extends State<OrderScreen>
       listen: false,
     ).products;
     final orderProvider = Provider.of<OrderProvider>(context, listen: false);
-    final ok = await orderProvider.cancelOrder(order.id, products);
+    final ok = await orderProvider.deleteOrder(order.id, products);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          ok
-              ? "Đã hủy đơn #${order.id}"
-              : orderProvider.errorMessage ?? "Không thể hủy đơn",
-        ),
-        backgroundColor: ok ? AppTheme.primaryColor : Colors.redAccent,
-      ),
+    ErrorTranslator.showTopToast(
+      context,
+      ok
+          ? "Đã xóa đơn #${order.id}"
+          : orderProvider.errorMessage ?? "Không thể xóa đơn",
+      isError: !ok,
     );
   }
 
@@ -108,19 +106,14 @@ class _OrderScreenState extends State<OrderScreen>
     final paymentUrl = await orderProvider.repayOrder(order.id);
     if (!mounted) return;
     if (paymentUrl == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            orderProvider.errorMessage ?? "Không thể tạo thanh toán",
-          ),
-          backgroundColor: Colors.redAccent,
-        ),
+      ErrorTranslator.showTopToast(
+        context,
+        orderProvider.errorMessage ?? "Không thể tạo thanh toán",
       );
       return;
     }
 
     final orderNavigator = Navigator.of(context);
-    final orderMessenger = ScaffoldMessenger.of(context);
 
     await Navigator.push<String>(
       context,
@@ -134,22 +127,13 @@ class _OrderScreenState extends State<OrderScreen>
             if (!mounted) return;
             _tabController.animateTo(1);
             requestPaidOrdersView();
-            orderMessenger.showSnackBar(
-              const SnackBar(
-                content: Text("Thanh toán thành công!"),
-                backgroundColor: AppTheme.primaryColor,
-              ),
-            );
+            ErrorTranslator.showTopToast(context, "Thanh toán thành công!", isError: false);
           },
           onPaymentFail: (error) {
             orderNavigator.pop();
-            orderMessenger.showSnackBar(
-              SnackBar(
-                content: Text(
-                  "Thanh toán thất bại: ${error['message'] ?? 'Đã hủy'}",
-                ),
-                backgroundColor: Colors.redAccent,
-              ),
+            ErrorTranslator.showTopToast(
+              context,
+              "Thanh toán thất bại: ${error['message'] ?? 'Đã hủy'}",
             );
           },
         ),
@@ -264,7 +248,10 @@ class _OrderList extends StatelessWidget {
           final statusUpper = order.status.toUpperCase();
           final canCancel = onCancel != null &&
               order.paymentStatus.toLowerCase() != 'paid' &&
-              (statusUpper == 'PENDING' || statusUpper == 'CONFIRMED' || statusUpper == 'CONFIRM');
+              (statusUpper == 'PENDING' ||
+                  statusUpper == 'CONFIRMED' ||
+                  statusUpper == 'CONFIRM' ||
+                  statusUpper == 'CANCELLED');
           final canRepay =
               onRepay != null && order.paymentStatus.toLowerCase() != 'paid' && statusUpper != 'CANCELLED';
 
@@ -338,7 +325,7 @@ class _OrderList extends StatelessWidget {
                             TextButton(
                               onPressed: () => onCancel!(order),
                               child: const Text(
-                                "Hủy đơn",
+                                "Xóa đơn",
                                 style: TextStyle(color: Colors.redAccent),
                               ),
                             ),

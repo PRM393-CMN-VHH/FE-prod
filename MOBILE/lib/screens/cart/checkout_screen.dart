@@ -88,14 +88,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       if (order == null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                orderProv.errorMessage ??
-                    "Không thể tạo đơn thanh toán VNPAY. Vui lòng thử lại.",
-              ),
-              backgroundColor: Colors.redAccent,
-            ),
+          ErrorTranslator.showTopToast(
+            context,
+            orderProv.errorMessage ??
+                "Không thể tạo đơn thanh toán VNPAY. Vui lòng thử lại.",
           );
         }
         return;
@@ -109,14 +105,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           );
 
       if (paymentUrl == null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              orderProv.errorMessage ??
-                  "Không thể mở thanh toán VNPAY. Vui lòng thử lại.",
-            ),
-            backgroundColor: Colors.redAccent,
-          ),
+        ErrorTranslator.showTopToast(
+          context,
+          orderProv.errorMessage ??
+              "Không thể mở thanh toán VNPAY. Vui lòng thử lại.",
         );
         return;
       }
@@ -160,13 +152,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               onPaymentFail: (error) {
                 checkoutNavigator.pop(); // Đóng WebView
                 if (mounted) {
-                  checkoutMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        "Thanh toán thất bại: ${error['message'] ?? 'Đã hủy'}",
-                      ),
-                      backgroundColor: Colors.redAccent,
-                    ),
+                  ErrorTranslator.showTopToast(
+                    context,
+                    "Thanh toán thất bại: ${error['message'] ?? 'Đã hủy'}",
                   );
                 }
               },
@@ -223,14 +211,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ),
       );
     } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            orderProv.errorMessage ??
-                "Không thể tạo đơn hàng. Vui lòng thử lại.",
-          ),
-          backgroundColor: Colors.redAccent,
-        ),
+      ErrorTranslator.showTopToast(
+        context,
+        orderProv.errorMessage ?? "Không thể tạo đơn hàng. Vui lòng thử lại.",
       );
     }
   }
