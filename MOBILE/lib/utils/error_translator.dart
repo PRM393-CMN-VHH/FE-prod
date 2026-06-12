@@ -6,10 +6,17 @@ class ErrorTranslator {
       previous = message;
       message = message
           .replaceFirst(RegExp(r'^Exception:\s*'), '')
-          .replaceFirst(RegExp(r'^(GET|POST|PUT|DELETE) Request failed:\s*'), '');
+          .replaceFirst(
+            RegExp(r'^(GET|POST|PUT|DELETE) Request failed:\s*'),
+            '',
+          );
     }
 
     final lower = message.toLowerCase();
+    if (lower.contains('timeoutexception') || lower.contains('timed out')) {
+      return 'Hệ thống phản hồi quá lâu. Vui lòng thử lại sau.';
+    }
+
     if (lower.contains('socketexception') ||
         lower.contains('connection refused') ||
         lower.contains('failed host lookup') ||
@@ -20,7 +27,9 @@ class ErrorTranslator {
       return 'Không thể kết nối đến hệ thống. Vui lòng kiểm tra mạng hoặc thử lại sau.';
     }
 
-    if (lower.contains('not logged in') || lower.contains('not authenticated') || lower.contains('unauthorized')) {
+    if (lower.contains('not logged in') ||
+        lower.contains('not authenticated') ||
+        lower.contains('unauthorized')) {
       return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
     }
 
@@ -46,7 +55,9 @@ class ErrorTranslator {
       return 'Sản phẩm này không còn trong giỏ hàng.';
     }
 
-    if (lower.contains('vượt quá tồn kho') || lower.contains('chỉ còn') || lower.contains('hết hàng')) {
+    if (lower.contains('vượt quá tồn kho') ||
+        lower.contains('chỉ còn') ||
+        lower.contains('hết hàng')) {
       return message;
     }
 

@@ -176,7 +176,7 @@ class CartScreen extends StatelessWidget {
                                     } else {
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         const SnackBar(
-                                          content: Text("Cannot exceed available stock limit"),
+                                          content: Text("Không thể vượt quá số lượng tồn kho"),
                                           duration: Duration(seconds: 1),
                                         ),
                                       );

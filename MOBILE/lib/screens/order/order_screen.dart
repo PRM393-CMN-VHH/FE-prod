@@ -63,6 +63,27 @@ class _OrderScreenState extends State<OrderScreen>
   }
 
   Future<void> _cancelOrder(OrderModel order) async {
+    // Thêm hộp thoại xác nhận
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Xác nhận hủy"),
+        content: Text("Bạn có chắc chắn muốn hủy đơn hàng #${order.id} không?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Quay lại"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Đồng ý hủy", style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
     final products = Provider.of<ProductProvider>(
       context,
       listen: false,
@@ -149,8 +170,8 @@ class _OrderScreenState extends State<OrderScreen>
           unselectedLabelColor: AppTheme.textSecondaryColor,
           indicatorColor: AppTheme.primaryColor,
           tabs: const [
-            Tab(text: "Đơn hàng"),
-            Tab(text: "Đã thanh toán"),
+            Tab(text: "Đang xử lý"),
+            Tab(text: "Lịch sử mua"),
           ],
         ),
         Expanded(
@@ -240,12 +261,12 @@ class _OrderList extends StatelessWidget {
         separatorBuilder: (_, _) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final order = orders[index];
-          final canCancel =
-              onCancel != null &&
+          final statusUpper = order.status.toUpperCase();
+          final canCancel = onCancel != null &&
               order.paymentStatus.toLowerCase() != 'paid' &&
-              order.status.toLowerCase() != 'cancelled';
+              (statusUpper == 'PENDING' || statusUpper == 'CONFIRMED' || statusUpper == 'CONFIRM');
           final canRepay =
-              onRepay != null && order.paymentStatus.toLowerCase() != 'paid';
+              onRepay != null && order.paymentStatus.toLowerCase() != 'paid' && statusUpper != 'CANCELLED';
 
           return Card(
             elevation: 0,

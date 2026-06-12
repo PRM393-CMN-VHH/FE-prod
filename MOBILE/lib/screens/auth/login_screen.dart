@@ -56,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Login successful!"),
+            content: Text("Đăng nhập thành công!"),
             backgroundColor: AppTheme.primaryColor,
           ),
         );
@@ -118,7 +118,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 if (success && mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text("Registration successful!"),
+                      content: Text("Đăng ký thành công!"),
                       backgroundColor: AppTheme.primaryColor,
                     ),
                   );

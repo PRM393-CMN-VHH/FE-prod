@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -19,6 +19,8 @@ class ApiService {
   factory ApiService() => _instance;
   ApiService._internal();
 
+  static const Duration _requestTimeout = Duration(seconds: 15);
+
   // ==========================================
   // API URL CONSTANTS & CONFIGURATIONS
   // ==========================================
@@ -27,7 +29,12 @@ class ApiService {
     if (kIsWeb) {
       return "http://localhost:3636";
     }
-    return "http://192.168.1.77:3636";
+    // For Android emulator, use 10.0.2.2 to access host's localhost.
+    // For iOS simulator or real devices, localhost or local IP is used.
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return "http://10.0.2.2:3636";
+    }
+    return "http://localhost:3636";
   }
 
   // Auth Routes
@@ -98,6 +105,18 @@ class ApiService {
   String _backendUrl(String pathOrUrl) {
     final uri = Uri.tryParse(pathOrUrl);
     if (uri != null && uri.hasScheme) {
+      // If the backend returns a localhost URL (common in misconfigured dev environments),
+      // we map it to the backendBaseUrl that the mobile device can actually reach.
+      if (uri.host == 'localhost' || uri.host == '127.0.0.1') {
+        final backendUri = Uri.parse(backendBaseUrl);
+        return uri
+            .replace(
+              scheme: backendUri.scheme,
+              host: backendUri.host,
+              port: backendUri.port,
+            )
+            .toString();
+      }
       return pathOrUrl;
     }
     final path = pathOrUrl.startsWith('/') ? pathOrUrl : '/$pathOrUrl';
@@ -139,7 +158,9 @@ class ApiService {
 
   Future<http.Response> _rawGetRequest(String url) async {
     final headers = await _getHeaders();
-    return await http.get(Uri.parse(url), headers: headers);
+    return await http
+        .get(Uri.parse(url), headers: headers)
+        .timeout(_requestTimeout);
   }
 
   Future<dynamic> getRequest(String url) async {
@@ -154,11 +175,9 @@ class ApiService {
   Future<dynamic> postRequest(String url, Map<String, dynamic> body) async {
     try {
       final headers = await _getHeaders();
-      final response = await http.post(
-        Uri.parse(url),
-        headers: headers,
-        body: jsonEncode(body),
-      );
+      final response = await http
+          .post(Uri.parse(url), headers: headers, body: jsonEncode(body))
+          .timeout(_requestTimeout);
       return _processResponse(response);
     } catch (e) {
       throw Exception(_friendlyRequestError(e));
@@ -168,7 +187,9 @@ class ApiService {
   Future<dynamic> postEmptyRequest(String url) async {
     try {
       final headers = await _getHeaders();
-      final response = await http.post(Uri.parse(url), headers: headers);
+      final response = await http
+          .post(Uri.parse(url), headers: headers)
+          .timeout(_requestTimeout);
       return _processResponse(response);
     } catch (e) {
       throw Exception(_friendlyRequestError(e));
@@ -178,11 +199,9 @@ class ApiService {
   Future<dynamic> putRequest(String url, Map<String, dynamic> body) async {
     try {
       final headers = await _getHeaders();
-      final response = await http.put(
-        Uri.parse(url),
-        headers: headers,
-        body: jsonEncode(body),
-      );
+      final response = await http
+          .put(Uri.parse(url), headers: headers, body: jsonEncode(body))
+          .timeout(_requestTimeout);
       return _processResponse(response);
     } catch (e) {
       throw Exception(_friendlyRequestError(e));
@@ -192,7 +211,9 @@ class ApiService {
   Future<dynamic> deleteRequest(String url) async {
     try {
       final headers = await _getHeaders();
-      final response = await http.delete(Uri.parse(url), headers: headers);
+      final response = await http
+          .delete(Uri.parse(url), headers: headers)
+          .timeout(_requestTimeout);
       return _processResponse(response);
     } catch (e) {
       throw Exception(_friendlyRequestError(e));
@@ -231,6 +252,8 @@ class ApiService {
     );
     raw = raw.replaceFirst(RegExp(r'^Exception:\s*'), '');
     if (raw.contains('SocketException') ||
+        raw.contains('TimeoutException') ||
+        raw.contains('timed out') ||
         raw.contains('Connection refused') ||
         raw.contains('Failed host lookup') ||
         raw.contains('Network is unreachable')) {
@@ -570,14 +593,32 @@ class ApiService {
       final List<OrderModel> orders = [];
       for (final oMap in response) {
         final map = oMap as Map<String, dynamic>;
-        final int orderId = map['orderId'] ?? map['id'] ?? 0;
         final List<OrderItem> orderItems = [];
-        final detailsResponse = await getRequest("$apiOrderDetail/$orderId");
-        if (detailsResponse is Map &&
-            detailsResponse.containsKey('orderDetails')) {
-          final detailsList = detailsResponse['orderDetails'] as List<dynamic>;
-          for (final detail in detailsList) {
+
+        // If Backend already included orderDetails, use them directly
+        if (map['orderDetails'] is List) {
+          for (final detail in map['orderDetails'] as List) {
             orderItems.add(OrderItem.fromJson(detail as Map<String, dynamic>));
+          }
+        } else {
+          // Fallback: only fetch if absolutely necessary (e.g. for user my-orders if not included)
+          // But ideally Backend should include it now.
+          final int orderId = map['orderId'] ?? map['id'] ?? 0;
+          try {
+            final detailsResponse =
+                await getRequest("$apiOrderDetail/$orderId");
+            if (detailsResponse is Map &&
+                detailsResponse.containsKey('orderDetails')) {
+              final detailsList =
+                  detailsResponse['orderDetails'] as List<dynamic>;
+              for (final detail in detailsList) {
+                orderItems.add(
+                  OrderItem.fromJson(detail as Map<String, dynamic>),
+                );
+              }
+            }
+          } catch (_) {
+            // If failed to fetch details, just continue with empty items for this order in the list
           }
         }
         orders.add(OrderModel.fromJson(map, orderItems));
@@ -612,7 +653,7 @@ class ApiService {
         return paymentResponse['paymentUrl'] as String;
       }
     }
-    throw Exception("Invalid repay response from server");
+    throw Exception("Phản hồi thanh toán lại không hợp lệ từ máy chủ");
   }
 
   Future<void> cancelOrder(int orderId) async {
@@ -631,7 +672,7 @@ class ApiService {
           .reversed
           .toList();
     }
-    throw Exception("Invalid transaction history response from server");
+    throw Exception("Phản hồi lịch sử giao dịch không hợp lệ từ máy chủ");
   }
 
   // ==========================================
@@ -672,7 +713,7 @@ class ApiService {
     });
 
     if (response is! Map || response['order'] is! Map) {
-      throw Exception("Invalid place order response from server");
+      throw Exception("Phản hồi đặt hàng không hợp lệ từ máy chủ");
     }
 
     String? paymentUrl;
@@ -714,9 +755,9 @@ class ApiService {
     final order = OrderModel.fromJson(orderPayload, orderItems);
 
     await addNotification(
-      title: "Order Placed",
+      title: "Đơn hàng đã đặt",
       content:
-          "Thank you for shopping. Your order #${order.id} has been placed. Payment: ${order.paymentMethod}.",
+          "Cảm ơn bạn đã mua sắm. Đơn hàng #${order.id} của bạn đã được khởi tạo. Thanh toán: ${order.paymentMethod}.",
     );
 
     return order;
@@ -735,13 +776,13 @@ class ApiService {
       'password': password,
     });
     if (response is Map<String, dynamic>) return response;
-    throw Exception("Invalid admin login response from server");
+    throw Exception("Phản hồi đăng nhập admin không hợp lệ từ máy chủ");
   }
 
   Future<Map<String, dynamic>> getAdminDashboard() async {
     final response = await getRequest(apiAdminDashboard);
     if (response is Map<String, dynamic>) return response;
-    throw Exception("Invalid admin dashboard response from server");
+    throw Exception("Phản hồi dashboard admin không hợp lệ từ máy chủ");
   }
 
   Future<Map<String, dynamic>> getAdminOrders({
@@ -762,7 +803,7 @@ class ApiService {
       Uri.parse(apiAdminOrders).replace(queryParameters: query).toString(),
     );
     if (response is Map<String, dynamic>) return response;
-    throw Exception("Invalid admin orders response from server");
+    throw Exception("Phản hồi danh sách đơn hàng không hợp lệ từ máy chủ");
   }
 
   Future<Map<String, dynamic>> updateAdminOrderStatus({
@@ -774,7 +815,7 @@ class ApiService {
     );
     final response = await postEmptyRequest(uri.toString());
     if (response is Map<String, dynamic>) return response;
-    throw Exception("Invalid update order status response from server");
+    throw Exception("Phản hồi cập nhật trạng thái không hợp lệ từ máy chủ");
   }
 
   Future<Map<String, dynamic>> getAdminProducts({
@@ -787,7 +828,7 @@ class ApiService {
       Uri.parse(apiAdminProducts).replace(queryParameters: query).toString(),
     );
     if (response is Map<String, dynamic>) return response;
-    throw Exception("Invalid admin products response from server");
+    throw Exception("Phản hồi danh sách sản phẩm không hợp lệ từ máy chủ");
   }
 
   Future<Product> addAdminProduct(Product product) async {
@@ -796,7 +837,7 @@ class ApiService {
       product.toBackendJson(),
     );
     if (response is Map<String, dynamic>) return Product.fromJson(response);
-    throw Exception("Invalid add product response from server");
+    throw Exception("Phản hồi thêm sản phẩm không hợp lệ từ máy chủ");
   }
 
   Future<Product> editAdminProduct(Product product) async {
@@ -805,7 +846,7 @@ class ApiService {
       product.toBackendJson(),
     );
     if (response is Map<String, dynamic>) return Product.fromJson(response);
-    throw Exception("Invalid edit product response from server");
+    throw Exception("Phản hồi sửa sản phẩm không hợp lệ từ máy chủ");
   }
 
   Future<void> deleteAdminProduct(int productId) async {
@@ -819,13 +860,13 @@ class ApiService {
           .map((json) => Product.fromJson(json as Map<String, dynamic>))
           .toList();
     }
-    throw Exception("Invalid combo products response from server");
+    throw Exception("Phản hồi danh sách combo không hợp lệ từ máy chủ");
   }
 
   Future<Map<String, dynamic>> getAdminComboItems(int comboId) async {
     final response = await getRequest("$apiAdminProductComboAddItem/$comboId");
     if (response is Map<String, dynamic>) return response;
-    throw Exception("Invalid combo items response from server");
+    throw Exception("Phản hồi chi tiết combo không hợp lệ từ máy chủ");
   }
 
   Future<List<dynamic>> saveAdminComboItem({
@@ -842,7 +883,7 @@ class ApiService {
     );
     final response = await postEmptyRequest(uri.toString());
     if (response is List) return response;
-    throw Exception("Invalid save combo item response from server");
+    throw Exception("Phản hồi lưu combo không hợp lệ từ máy chủ");
   }
 
   Future<List<dynamic>> removeAdminComboItem(int comboItemId) async {
@@ -850,7 +891,7 @@ class ApiService {
       "$apiAdminProductComboRemoveItem/$comboItemId",
     );
     if (response is List) return response;
-    throw Exception("Invalid remove combo item response from server");
+    throw Exception("Phản hồi xóa combo không hợp lệ từ máy chủ");
   }
 
   Future<Map<String, dynamic>> getAdminUsers({
@@ -863,19 +904,19 @@ class ApiService {
       Uri.parse(apiAdminUsers).replace(queryParameters: query).toString(),
     );
     if (response is Map<String, dynamic>) return response;
-    throw Exception("Invalid admin users response from server");
+    throw Exception("Phản hồi danh sách user không hợp lệ từ máy chủ");
   }
 
   Future<UserModel> activateAdminUser(int userId) async {
     final response = await postEmptyRequest("$apiAdminUserActivate/$userId");
     if (response is Map<String, dynamic>) return UserModel.fromJson(response);
-    throw Exception("Invalid activate user response from server");
+    throw Exception("Phản hồi kích hoạt user không hợp lệ từ máy chủ");
   }
 
   Future<UserModel> deactivateAdminUser(int userId) async {
     final response = await postEmptyRequest("$apiAdminUserDeactivate/$userId");
     if (response is Map<String, dynamic>) return UserModel.fromJson(response);
-    throw Exception("Invalid deactivate user response from server");
+    throw Exception("Phản hồi vô hiệu hóa user không hợp lệ từ máy chủ");
   }
 
   Future<UserModel> updateAdminUserRole({
@@ -887,7 +928,7 @@ class ApiService {
     ).replace(queryParameters: {'roleId': roleId.toString()});
     final response = await postEmptyRequest(uri.toString());
     if (response is Map<String, dynamic>) return UserModel.fromJson(response);
-    throw Exception("Invalid update user role response from server");
+    throw Exception("Phản hồi cập nhật quyền không hợp lệ từ máy chủ");
   }
 
   // ==========================================
@@ -903,17 +944,17 @@ class ApiService {
       final defaultNotifs = [
         NotificationModel(
           id: 1,
-          title: "Welcome to Tiệm Hoa Xinh",
+          title: "Chào mừng đến với Tiệm Hoa Xinh",
           content:
-              "Get fresh blossoms delivered to your door. Log in and discover premium floral catalogs.",
+              "Những bông hoa tươi tắn nhất đã sẵn sàng giao đến bạn. Hãy đăng nhập để khám phá các mẫu hoa cao cấp.",
           timestamp: DateTime.now().subtract(const Duration(hours: 4)),
           isRead: false,
         ),
         NotificationModel(
           id: 2,
-          title: "Special Anniversary Promo",
+          title: "Khuyến mãi đặc biệt",
           content:
-              "Enjoy up to 20% discount on all elegant rose bouquets this weekend.",
+              "Giảm giá lên đến 20% cho tất cả các bó hoa hồng sang trọng trong cuối tuần này.",
           timestamp: DateTime.now().subtract(const Duration(days: 1)),
           isRead: true,
         ),

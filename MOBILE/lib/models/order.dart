@@ -56,6 +56,7 @@ class OrderModel {
   final String status;
   final String paymentStatus;
   final String? paymentUrl;
+  final String? userEmail;
   final DateTime createdAt;
   final List<OrderItem> items;
 
@@ -69,6 +70,7 @@ class OrderModel {
     required this.status,
     this.paymentStatus = '',
     this.paymentUrl,
+    this.userEmail,
     required this.createdAt,
     required this.items,
   });
@@ -86,12 +88,14 @@ class OrderModel {
     String name = json['recipient_name'] ?? '';
     String phone = json['recipient_phone'] ?? '';
     String addr = json['shipping_address'] ?? '';
+    String? email;
 
     if (json['user'] != null && json['user'] is Map) {
       final userMap = json['user'] as Map<String, dynamic>;
       if (name.isEmpty) name = userMap['fullName'] ?? '';
       if (phone.isEmpty) phone = userMap['phoneNumber'] ?? '';
       if (addr.isEmpty) addr = userMap['address'] ?? '';
+      email = userMap['email'];
     }
 
     final String pMethod =
@@ -120,6 +124,7 @@ class OrderModel {
       status: ordStatus,
       paymentStatus: payStatus,
       paymentUrl: paymentUrl,
+      userEmail: email,
       createdAt: cAt,
       items: items,
     );

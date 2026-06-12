@@ -138,7 +138,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  "Support Agent is typing...",
+                  "Nhân viên hỗ trợ đang soạn tin...",
                   style: textTheme.bodyMedium?.copyWith(
                     fontSize: 12,
                     fontStyle: FontStyle.italic,
@@ -168,7 +168,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   child: TextField(
                     controller: _messageController,
                     decoration: const InputDecoration(
-                      hintText: "Type a message...",
+                      hintText: "Nhập tin nhắn...",
                       contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       filled: true,
                       fillColor: Color(0xFFF9F7F7),
