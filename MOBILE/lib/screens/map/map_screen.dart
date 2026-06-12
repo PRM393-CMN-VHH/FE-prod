@@ -129,7 +129,7 @@ class _MapScreenState extends State<MapScreen> {
               ],
             ),
             child: _selectedLocation == null
-                ? const Center(child: Text("Select a location on the map"))
+                ? const Center(child: Text("Chọn một địa điểm trên bản đồ"))
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -155,7 +155,7 @@ class _MapScreenState extends State<MapScreen> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              "Open",
+                              "Đang mở",
                               style: TextStyle(
                                 color: Colors.green.shade700,
                                 fontSize: 12,
@@ -192,7 +192,7 @@ class _MapScreenState extends State<MapScreen> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            "Working Hours: ${_selectedLocation!.hours}",
+                            "Giờ làm việc: ${_selectedLocation!.hours}",
                             style: textTheme.bodyMedium,
                           ),
                         ],
@@ -235,7 +235,7 @@ class _MapScreenState extends State<MapScreen> {
                                 size: 18,
                               ),
                               label: const Text(
-                                "Call Store",
+                                "Gọi cửa hàng",
                                 style: TextStyle(color: AppTheme.primaryColor),
                               ),
                             ),
@@ -256,7 +256,7 @@ class _MapScreenState extends State<MapScreen> {
                               onPressed: () =>
                                   _openInExternalMap(_selectedLocation!),
                               icon: const Icon(Icons.navigation, size: 18),
-                              label: const Text("Directions"),
+                              label: const Text("Chỉ đường"),
                             ),
                           ),
                         ],

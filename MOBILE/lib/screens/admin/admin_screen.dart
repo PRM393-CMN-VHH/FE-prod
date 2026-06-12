@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:prm393/models/category.dart';
 import 'package:prm393/models/product.dart';
 import 'package:prm393/models/user.dart';
+import 'package:prm393/screens/order/order_detail_screen.dart';
 import 'package:prm393/services/api_service.dart';
 import 'package:prm393/theme/app_theme.dart';
 import 'package:prm393/utils/currency_formatter.dart';
@@ -101,11 +102,11 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
           ("Khách hàng", data['totalUsers']),
           ("Sản phẩm", data['totalProducts']),
           ("Đơn hàng", data['totalOrders']),
-          ("Pending", data['pendingCount']),
-          ("Confirmed", data['confirmedCount']),
-          ("Shipped", data['shippedCount']),
-          ("Delivered", data['deliveredCount']),
-          ("Cancelled", data['cancelledCount']),
+          ("Chờ duyệt", data['pendingCount']),
+          ("Đã xác nhận", data['confirmedCount']),
+          ("Đang giao", data['shippedCount']),
+          ("Đã giao", data['deliveredCount']),
+          ("Đã hủy", data['cancelledCount']),
         ];
         return RefreshIndicator(
           onRefresh: _refresh,
@@ -276,6 +277,14 @@ class _AdminOrdersTabState extends State<_AdminOrdersTab> {
                   return Card(
                     elevation: 0,
                     child: ListTile(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => OrderDetailScreen(orderId: orderId as int),
+                          ),
+                        );
+                      },
                       title: Text("Đơn #$orderId - $currentStatus"),
                       subtitle: Text(
                         "${user['email'] ?? ''}\n${formatVnd((order['totalPrice'] as num? ?? 0).toDouble())}",

@@ -1,7 +1,6 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:prm393/services/api_service.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 class VnpayPaymentScreen extends StatefulWidget {
@@ -21,58 +20,43 @@ class VnpayPaymentScreen extends StatefulWidget {
 }
 
 class _VnpayPaymentScreenState extends State<VnpayPaymentScreen> {
+  static const Duration _callbackTimeout = Duration(seconds: 15);
+
   late final WebViewController _controller;
   bool _isLoading = true;
   bool _hasHandledReturn = false;
 
   bool _isVnpayReturnUrl(String url) => url.contains('payment/vnpayReturn');
 
-  Map<String, dynamic> _resultFromReturnUrl(Uri uri) {
-    final params = uri.queryParameters;
-    final responseCode = params['vnp_ResponseCode'];
-    final transactionStatus = params['vnp_TransactionStatus'];
-    final isSuccess =
-        responseCode == '00' &&
-        (transactionStatus == null || transactionStatus == '00');
+  Future<Map<String, dynamic>> _fetchBackendResult(String url) async {
+    // Normalizing URL: Replace host/port with backendBaseUrl to handle 'localhost' issues in mobile
+    final interceptedUri = Uri.parse(url);
+    final backendUri = Uri.parse(ApiService.backendBaseUrl);
+
+    final normalizedUri = interceptedUri.replace(
+      scheme: backendUri.scheme,
+      host: backendUri.host,
+      port: backendUri.port,
+    );
+
+    final response = await ApiService().getRequest(normalizedUri.toString());
+    if (response is Map<String, dynamic>) {
+      return response;
+    }
 
     return {
-      'status': isSuccess ? 'success' : 'fail',
-      'message': isSuccess
-          ? 'Thanh toán thành công'
-          : 'Thanh toán thất bại (Mã lỗi: ${responseCode ?? 'không xác định'})',
-      'orderId': params['vnp_TxnRef'],
-      'amount': params['vnp_Amount'],
-      'bankCode': params['vnp_BankCode'],
-      'responseCode': responseCode,
-      'transactionStatus': transactionStatus,
+      'status': 'fail',
+      'message':
+          'Hệ thống trả về dữ liệu thanh toán không hợp lệ. Vui lòng kiểm tra lại đơn hàng.',
     };
   }
 
-  Future<Map<String, dynamic>?> _fetchBackendResult(String url) async {
-    final response = await http
-        .get(Uri.parse(url))
-        .timeout(const Duration(seconds: 12));
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      return null;
+  void _completePayment(Map<String, dynamic> result) {
+    if (result['status'] == 'success') {
+      widget.onPaymentSuccess(result);
+    } else {
+      widget.onPaymentFail(result);
     }
-    final decoded = jsonDecode(response.body);
-    if (decoded is Map<String, dynamic>) {
-      return decoded;
-    }
-    return null;
-  }
-
-  Future<Map<String, dynamic>?> _waitForBackendSuccess(String url) async {
-    for (var attempt = 0; attempt < 3; attempt++) {
-      try {
-        final result = await _fetchBackendResult(url);
-        if (result != null && result['status'] == 'success') {
-          return result;
-        }
-      } catch (_) {}
-      await Future.delayed(const Duration(milliseconds: 700));
-    }
-    return null;
   }
 
   Future<void> _handleReturnUrl(String url) async {
@@ -86,43 +70,12 @@ class _VnpayPaymentScreenState extends State<VnpayPaymentScreen> {
     }
 
     try {
-      final uri = Uri.parse(url);
-      final hasVnpayResult = uri.queryParameters.containsKey(
-        'vnp_ResponseCode',
-      );
-
-      if (hasVnpayResult) {
-        final vnpayResult = _resultFromReturnUrl(uri);
-        if (vnpayResult['status'] != 'success') {
-          widget.onPaymentFail(vnpayResult);
-          return;
-        }
-
-        final backendResult = await _waitForBackendSuccess(url);
-        widget.onPaymentSuccess({
-          ...vnpayResult,
-          if (backendResult != null) ...backendResult,
-        });
-        return;
-      }
-
       final result = await _fetchBackendResult(url);
-
-      if (result != null && result['status'] == 'success') {
-        widget.onPaymentSuccess(result);
-      } else {
-        widget.onPaymentFail(
-          result ??
-              {
-                'message':
-                    'Không thể xác nhận kết quả thanh toán. Vui lòng kiểm tra lại đơn hàng.',
-              },
-        );
-      }
+      _completePayment(result);
     } catch (_) {
       widget.onPaymentFail({
         'message':
-            'Đã nhận phản hồi từ VNPay nhưng không thể đọc kết quả. Vui lòng kiểm tra lại đơn hàng.',
+            'Không thể xác nhận kết quả thanh toán từ hệ thống. Vui lòng kiểm tra lại đơn hàng.',
       });
     }
   }
@@ -147,42 +100,19 @@ class _VnpayPaymentScreenState extends State<VnpayPaymentScreen> {
               unawaited(_handleReturnUrl(url));
               return;
             }
-            setState(() {
-              _isLoading = true;
-            });
+            if (mounted) {
+              setState(() {
+                _isLoading = true;
+              });
+            }
           },
           onPageFinished: (String url) async {
-            setState(() {
-              _isLoading = false;
-            });
-            if (_isVnpayReturnUrl(url) && !_hasHandledReturn) {
-              _hasHandledReturn = true;
-              // Lấy nội dung JSON từ phản hồi của Backend
-              final String responseText =
-                  await _controller.runJavaScriptReturningResult(
-                        "document.body.innerText",
-                      )
-                      as String;
-
-              // Giải mã chuỗi JSON (trong một số môi trường có thể bị bao bởi dấu nháy kép thừa)
-              String cleanJson = responseText;
-              if (cleanJson.startsWith('"') && cleanJson.endsWith('"')) {
-                cleanJson = cleanJson
-                    .substring(1, cleanJson.length - 1)
-                    .replaceAll('\\"', '"');
-              }
-
-              try {
-                final Map<String, dynamic> result = jsonDecode(cleanJson);
-                if (result['status'] == 'success') {
-                  widget.onPaymentSuccess(result);
-                } else {
-                  widget.onPaymentFail(result);
-                }
-              } catch (e) {
-                widget.onPaymentFail({'message': 'Lỗi xử lý dữ liệu!'});
-              }
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+              });
             }
+            // Logic handled in onNavigationRequest or onPageStarted
           },
         ),
       )

@@ -136,7 +136,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           color: Colors.black.withOpacity(0.5),
                           child: const Center(
                             child: Text(
-                              "Out of Stock",
+                              "Hết hàng",
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 24,
@@ -217,9 +217,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _specCard("Color", product.color),
-                      _specCard("Size", product.size),
-                      _specCard("Freshness", product.freshness),
+                      _specCard("Màu sắc", product.color),
+                      _specCard("Kích thước", product.size),
+                      _specCard("Độ tươi", product.freshness),
                     ],
                   ),
 

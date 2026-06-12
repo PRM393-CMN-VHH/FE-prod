@@ -26,7 +26,7 @@ class NotificationScreen extends StatelessWidget {
                 },
                 icon: const Icon(Icons.done_all, size: 18, color: AppTheme.primaryColor),
                 label: const Text(
-                  "Mark all as read",
+                  "Đánh dấu tất cả đã đọc",
                   style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -50,12 +50,12 @@ class NotificationScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            "No notifications",
+                            "Không có thông báo",
                             style: textTheme.headlineSmall?.copyWith(color: AppTheme.textSecondaryColor),
                           ),
                           const SizedBox(height: 8),
                           const Text(
-                            "We will alert you here when something fresh arrives",
+                            "Chúng tôi sẽ thông báo cho bạn khi có tin mới",
                             style: TextStyle(color: AppTheme.textSecondaryColor),
                           ),
                         ],
@@ -71,11 +71,11 @@ class NotificationScreen extends StatelessWidget {
                         final diff = DateTime.now().difference(notif.timestamp);
                         String timeText;
                         if (diff.inMinutes < 60) {
-                          timeText = "${diff.inMinutes}m ago";
+                          timeText = "${diff.inMinutes} phút trước";
                         } else if (diff.inHours < 24) {
-                          timeText = "${diff.inHours}h ago";
+                          timeText = "${diff.inHours} giờ trước";
                         } else {
-                          timeText = "${diff.inDays}d ago";
+                          timeText = "${diff.inDays} ngày trước";
                         }
 
                         return Card(

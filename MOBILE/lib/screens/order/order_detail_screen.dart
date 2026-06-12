@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:prm393/models/order.dart';
+import 'package:prm393/providers/auth_provider.dart';
 import 'package:prm393/services/api_service.dart';
 import 'package:prm393/theme/app_theme.dart';
 import 'package:prm393/utils/currency_formatter.dart';
@@ -30,8 +32,33 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     await _future;
   }
 
+  Future<void> _updateStatus(String status) async {
+    try {
+      await ApiService().updateAdminOrderStatus(
+        orderId: widget.orderId,
+        status: status,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Cập nhật trạng thái thành công!")),
+        );
+        _refresh();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(ErrorTranslator.userMessage(e))),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isAdmin =
+        Provider.of<AuthProvider>(context, listen: false).user?.isAdmin ??
+        false;
+
     return Scaffold(
       appBar: AppBar(title: Text("Đơn #${widget.orderId}")),
       body: FutureBuilder<OrderModel>(
@@ -62,12 +89,63 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                if (isAdmin) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Cập nhật trạng thái:",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      DropdownButton<String>(
+                        value: [
+                          "PENDING",
+                          "CONFIRMED",
+                          "SHIPPED",
+                          "DELIVERED",
+                          "CANCELLED",
+                        ].contains(order.status.toUpperCase())
+                            ? order.status.toUpperCase()
+                            : null,
+                        hint: Text(order.status),
+                        items: const [
+                          DropdownMenuItem(
+                            value: "PENDING",
+                            child: Text("PENDING"),
+                          ),
+                          DropdownMenuItem(
+                            value: "CONFIRMED",
+                            child: Text("CONFIRMED"),
+                          ),
+                          DropdownMenuItem(
+                            value: "SHIPPED",
+                            child: Text("SHIPPED"),
+                          ),
+                          DropdownMenuItem(
+                            value: "DELIVERED",
+                            child: Text("DELIVERED"),
+                          ),
+                          DropdownMenuItem(
+                            value: "CANCELLED",
+                            child: Text("CANCELLED"),
+                          ),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) _updateStatus(val);
+                        },
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 24),
+                ],
                 _InfoTile(label: "Trạng thái đơn", value: order.status),
                 _InfoTile(
                   label: "Thanh toán",
                   value:
                       "${order.paymentMethod}${order.paymentStatus.isEmpty ? '' : ' (${order.paymentStatus})'}",
                 ),
+                if (order.userEmail != null)
+                  _InfoTile(label: "Tài khoản đặt", value: order.userEmail!),
                 _InfoTile(label: "Người nhận", value: order.recipientName),
                 _InfoTile(label: "Số điện thoại", value: order.recipientPhone),
                 _InfoTile(label: "Địa chỉ", value: order.shippingAddress),

@@ -205,11 +205,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         context: context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
-          title: const Text("Order Placed!"),
+          title: const Text("Đặt hàng thành công!"),
           content: Text(
             orderStatus == "Paid (VNPAY)"
-                ? "Your payment via VNPAY was successful! We have sent a confirmation alert to your Notifications inbox."
-                : "Your purchase was successful. We have sent a confirmation details alert to your Notifications inbox.",
+                ? "Thanh toán qua VNPAY thành công! Chúng tôi đã gửi thông báo xác nhận đến hộp thư của bạn."
+                : "Đặt hàng thành công. Chúng tôi đã gửi thông báo chi tiết đến hộp thư của bạn.",
           ),
           actions: [
             TextButton(
@@ -217,7 +217,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 // Pop back to home screen
                 Navigator.of(context).popUntil((route) => route.isFirst);
               },
-              child: const Text("Back to Home"),
+              child: const Text("Về trang chủ"),
             ),
           ],
         ),
