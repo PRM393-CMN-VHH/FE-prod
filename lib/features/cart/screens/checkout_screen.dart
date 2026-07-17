@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:prm393/core/constants/app_messages.dart';
 import 'package:prm393/features/auth/providers/auth_provider.dart';
 import 'package:prm393/features/cart/providers/cart_provider.dart';
 import 'package:prm393/features/orders/providers/order_provider.dart';
+import 'package:prm393/features/notifications/providers/notification_provider.dart';
 import 'package:prm393/core/network/api_service.dart';
 import 'package:prm393/core/theme/app_theme.dart';
 import 'package:prm393/features/cart/screens/vnpay_payment_screen.dart';
@@ -78,6 +80,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final cartProv = Provider.of<CartProvider>(context, listen: false);
     final orderProv = Provider.of<OrderProvider>(context, listen: false);
+    final notifProv = Provider.of<NotificationProvider>(context, listen: false);
 
     if (_paymentMethod == 'VNPAY') {
       final order = await orderProv.placeOrder(
@@ -95,8 +98,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         messenger.showSnackBar(
           SnackBar(
             content: Text(
-              orderProv.errorMessage ??
-                  "Không thể tạo đơn thanh toán VNPAY. Vui lòng thử lại.",
+              orderProv.errorMessage ?? AppMessage.vnpayCreateFailed.text,
             ),
             backgroundColor: Colors.redAccent,
           ),
@@ -116,8 +118,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         messenger.showSnackBar(
           SnackBar(
             content: Text(
-              orderProv.errorMessage ??
-                  "Không thể mở thanh toán VNPAY. Vui lòng thử lại.",
+              orderProv.errorMessage ?? AppMessage.vnpayOpenFailed.text,
             ),
             backgroundColor: Colors.redAccent,
           ),
@@ -133,21 +134,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               navigator.pop();
               await cartProv.clearCart();
               await orderProv.loadTransactionHistory();
+              await notifProv.loadNotifications();
               requestPaidOrdersView();
               if (!navigator.mounted) return;
               showDialog(
                 context: navigator.context,
                 barrierDismissible: false,
                 builder: (ctx) => AlertDialog(
-                  title: const Text("Thanh toán thành công!"),
+                  title: Text(AppMessage.paymentSuccessTitle.text),
                   content: Text(
-                    "Giao dịch VNPay cho đơn hàng ${order.id} đã hoàn tất.",
+                    AppMessage.vnpayPaymentDone.format([order.id]),
                   ),
                   actions: [
                     TextButton(
                       onPressed: () =>
                           navigator.popUntil((route) => route.isFirst),
-                      child: const Text("Về trang chủ"),
+                      child: Text(AppMessage.backToHome.text),
                     ),
                   ],
                 ),
@@ -158,7 +160,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               messenger.showSnackBar(
                 SnackBar(
                   content: Text(
-                    "Thanh toán thất bại: ${error['message'] ?? 'Đã hủy'}",
+                    AppMessage.paymentFailed.format([
+                      error['message'] ??
+                          AppMessage.paymentCancelledFallback.text,
+                    ]),
                   ),
                   backgroundColor: Colors.redAccent,
                 ),
@@ -178,6 +183,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final cartProv = Provider.of<CartProvider>(context, listen: false);
     final orderProv = Provider.of<OrderProvider>(context, listen: false);
+    final notifProv = Provider.of<NotificationProvider>(context, listen: false);
 
     final success =
         await orderProv.placeOrder(
@@ -194,6 +200,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (success && mounted) {
       // Clear the local cart
       await cartProv.clearCart();
+      await notifProv.loadNotifications();
       if (!mounted) return;
 
       // Show success dialog
@@ -201,19 +208,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         context: navigator.context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
-          title: const Text("Order Placed!"),
-          content: Text(
-            orderStatus == "Paid (VNPAY)"
-                ? "Your payment via VNPAY was successful! We have sent a confirmation alert to your Notifications inbox."
-                : "Your purchase was successful. We have sent a confirmation details alert to your Notifications inbox.",
-          ),
+          title: Text(AppMessage.orderPlacedTitle.text),
+          content: Text(AppMessage.orderPlacedBody.text),
           actions: [
             TextButton(
               onPressed: () {
                 // Pop back to home screen
                 navigator.popUntil((route) => route.isFirst);
               },
-              child: const Text("Back to Home"),
+              child: Text(AppMessage.backToHome.text),
             ),
           ],
         ),
@@ -222,8 +225,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            orderProv.errorMessage ??
-                "Không thể tạo đơn hàng. Vui lòng thử lại.",
+            orderProv.errorMessage ?? AppMessage.orderCreateFailed.text,
           ),
           backgroundColor: Colors.redAccent,
         ),

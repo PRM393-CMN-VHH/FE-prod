@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:prm393/core/constants/app_messages.dart';
 import 'package:prm393/features/auth/providers/auth_provider.dart';
 import 'package:prm393/features/cart/providers/cart_provider.dart';
 import 'package:prm393/features/notifications/providers/notification_provider.dart';
 import 'package:prm393/features/catalog/providers/product_provider.dart';
 import 'package:prm393/features/chat/providers/chat_provider.dart';
+import 'package:prm393/features/admin/providers/admin_chat_provider.dart';
 import 'package:prm393/features/admin/screens/admin_screen.dart';
 import 'package:prm393/features/catalog/screens/product_list_screen.dart';
 import 'package:prm393/features/cart/screens/cart_order_screen.dart';
@@ -38,7 +40,18 @@ class _MainNavigationState extends State<MainNavigation> {
         context,
         listen: false,
       ).loadNotifications();
-      Provider.of<ChatProvider>(context, listen: false).loadMessages();
+
+      final isAdmin =
+          Provider.of<AuthProvider>(context, listen: false).user?.isAdmin ??
+          false;
+      if (isAdmin) {
+        Provider.of<AdminChatProvider>(
+          context,
+          listen: false,
+        ).loadConversations();
+      } else {
+        Provider.of<ChatProvider>(context, listen: false).loadMessages();
+      }
     });
   }
 
@@ -46,6 +59,8 @@ class _MainNavigationState extends State<MainNavigation> {
   Widget build(BuildContext context) {
     final cartProvider = Provider.of<CartProvider>(context);
     final notificationProvider = Provider.of<NotificationProvider>(context);
+    final chatProvider = Provider.of<ChatProvider>(context);
+    final adminChatProvider = Provider.of<AdminChatProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
     final isAdmin = authProvider.user?.isAdmin ?? false;
     final screens = <Widget>[
@@ -54,7 +69,7 @@ class _MainNavigationState extends State<MainNavigation> {
       if (isAdmin) const AdminScreen(),
       const ProfileScreen(),
       const MapScreen(),
-      const SupportScreen(),
+      if (!isAdmin) const SupportScreen(),
     ];
     final titles = <String>[
       if (!isAdmin) AppStrings.appName,
@@ -62,7 +77,7 @@ class _MainNavigationState extends State<MainNavigation> {
       if (isAdmin) AppStrings.admin,
       AppStrings.profile,
       AppStrings.stores,
-      AppStrings.support,
+      if (!isAdmin) AppStrings.support,
     ];
     if (_currentIndex >= screens.length) {
       _currentIndex = screens.length - 1;
@@ -92,23 +107,21 @@ class _MainNavigationState extends State<MainNavigation> {
               showDialog(
                 context: context,
                 builder: (ctx) => AlertDialog(
-                  title: const Text("Đăng xuất"),
-                  content: const Text(
-                    "Bạn có chắc muốn đăng xuất khỏi Tiệm Hoa Xinh?",
-                  ),
+                  title: Text(AppMessage.logoutTitle.text),
+                  content: Text(AppMessage.logoutConfirmMessage.text),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(ctx),
-                      child: const Text("Hủy"),
+                      child: Text(AppMessage.cancelAction.text),
                     ),
                     TextButton(
                       onPressed: () {
                         Navigator.pop(ctx);
                         authProvider.signOut();
                       },
-                      child: const Text(
-                        "Đăng xuất",
-                        style: TextStyle(color: Colors.redAccent),
+                      child: Text(
+                        AppMessage.logoutTitle.text,
+                        style: const TextStyle(color: Colors.redAccent),
                       ),
                     ),
                   ],
@@ -149,9 +162,17 @@ class _MainNavigationState extends State<MainNavigation> {
               label: "Giỏ/Đơn",
             ),
           if (isAdmin)
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.admin_panel_settings_outlined),
-              activeIcon: Icon(Icons.admin_panel_settings),
+            BottomNavigationBarItem(
+              icon: Badge(
+                isLabelVisible: adminChatProvider.totalUnreadCount > 0,
+                smallSize: 8,
+                child: const Icon(Icons.admin_panel_settings_outlined),
+              ),
+              activeIcon: Badge(
+                isLabelVisible: adminChatProvider.totalUnreadCount > 0,
+                smallSize: 8,
+                child: const Icon(Icons.admin_panel_settings),
+              ),
               label: "Admin",
             ),
           const BottomNavigationBarItem(
@@ -164,19 +185,30 @@ class _MainNavigationState extends State<MainNavigation> {
             activeIcon: Icon(Icons.map),
             label: "Cửa hàng",
           ),
-          BottomNavigationBarItem(
-            icon: Badge(
-              label: Text(notificationProvider.unreadCount.toString()),
-              isLabelVisible: notificationProvider.unreadCount > 0,
-              child: const Icon(Icons.chat_bubble_outline),
+          if (!isAdmin)
+            BottomNavigationBarItem(
+              icon: Badge(
+                label: Text(
+                  (notificationProvider.unreadCount + chatProvider.unreadCount)
+                      .toString(),
+                ),
+                isLabelVisible:
+                    notificationProvider.unreadCount + chatProvider.unreadCount >
+                    0,
+                child: const Icon(Icons.chat_bubble_outline),
+              ),
+              activeIcon: Badge(
+                label: Text(
+                  (notificationProvider.unreadCount + chatProvider.unreadCount)
+                      .toString(),
+                ),
+                isLabelVisible:
+                    notificationProvider.unreadCount + chatProvider.unreadCount >
+                    0,
+                child: const Icon(Icons.chat_bubble),
+              ),
+              label: "Chat/Tin",
             ),
-            activeIcon: Badge(
-              label: Text(notificationProvider.unreadCount.toString()),
-              isLabelVisible: notificationProvider.unreadCount > 0,
-              child: const Icon(Icons.chat_bubble),
-            ),
-            label: "Chat/Tin",
-          ),
         ],
       ),
     );

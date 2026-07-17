@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:prm393/core/theme/app_theme.dart';
+import 'package:prm393/features/admin/providers/admin_chat_provider.dart';
 import 'package:prm393/features/admin/widgets/admin_tabs.dart';
 
 class AdminScreen extends StatefulWidget {
@@ -27,6 +29,8 @@ class _AdminScreenState extends State<AdminScreen>
 
   @override
   Widget build(BuildContext context) {
+    final unreadChat = context.watch<AdminChatProvider>().totalUnreadCount;
+
     return ColoredBox(
       color: AppTheme.backgroundColor,
       child: Column(
@@ -59,12 +63,36 @@ class _AdminScreenState extends State<AdminScreen>
                 color: AppTheme.primaryColor,
                 borderRadius: BorderRadius.circular(12),
               ),
-              tabs: const [
-                Tab(text: "Tổng quan"),
-                Tab(text: "Đơn hàng"),
-                Tab(text: "Sản phẩm"),
-                Tab(text: "Combo"),
-                Tab(text: "User"),
+              tabs: [
+                const Tab(
+                  icon: Icon(Icons.dashboard_outlined, size: 18),
+                  text: "Tổng quan",
+                  iconMargin: EdgeInsets.only(bottom: 4),
+                ),
+                const Tab(
+                  icon: Icon(Icons.receipt_long_outlined, size: 18),
+                  text: "Đơn hàng",
+                  iconMargin: EdgeInsets.only(bottom: 4),
+                ),
+                const Tab(
+                  icon: Icon(Icons.local_florist_outlined, size: 18),
+                  text: "Sản phẩm",
+                  iconMargin: EdgeInsets.only(bottom: 4),
+                ),
+                const Tab(
+                  icon: Icon(Icons.people_outline, size: 18),
+                  text: "User",
+                  iconMargin: EdgeInsets.only(bottom: 4),
+                ),
+                Tab(
+                  icon: Badge(
+                    isLabelVisible: unreadChat > 0,
+                    smallSize: 8,
+                    child: const Icon(Icons.chat_bubble_outline, size: 18),
+                  ),
+                  text: "Chat",
+                  iconMargin: const EdgeInsets.only(bottom: 4),
+                ),
               ],
             ),
           ),
@@ -75,8 +103,8 @@ class _AdminScreenState extends State<AdminScreen>
                 AdminDashboardTab(),
                 AdminOrdersTab(),
                 AdminProductsTab(),
-                AdminComboTab(),
                 AdminUsersTab(),
+                AdminChatTab(),
               ],
             ),
           ),

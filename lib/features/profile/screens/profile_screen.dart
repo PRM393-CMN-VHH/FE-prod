@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:prm393/core/constants/app_messages.dart';
 import 'package:prm393/features/auth/providers/auth_provider.dart';
 import 'package:prm393/features/profile/widgets/profile_error_banner.dart';
 import 'package:prm393/core/theme/app_theme.dart';
@@ -50,8 +51,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       SnackBar(
         content: Text(
           ok
-              ? "Đã cập nhật hồ sơ"
-              : authProvider.errorMessage ?? "Không thể cập nhật hồ sơ",
+              ? AppMessage.profileUpdated.text
+              : authProvider.errorMessage ??
+                    AppMessage.profileUpdateFailed.text,
         ),
         backgroundColor: ok ? AppTheme.primaryColor : Colors.redAccent,
       ),
@@ -106,7 +108,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return "Vui lòng nhập họ tên";
+                      return AppMessage.nameRequired.text;
                     }
                     return null;
                   },
@@ -121,7 +123,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return "Vui lòng nhập số điện thoại";
+                      return AppMessage.phoneRequired.text;
                     }
                     return null;
                   },
@@ -136,7 +138,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return "Vui lòng nhập địa chỉ";
+                      return AppMessage.addressRequired.text;
                     }
                     return null;
                   },

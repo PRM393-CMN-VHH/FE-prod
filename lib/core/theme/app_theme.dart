@@ -31,7 +31,12 @@ class AppTheme {
       appBarTheme: const AppBarTheme(
         backgroundColor: backgroundColor,
         elevation: 0,
-        centerTitle: true,
+        // Material 3 phủ thêm màu surfaceTint khi nội dung cuộn bên dưới
+        // AppBar, khiến header đổi màu dù elevation = 0. Khóa cả hai để giữ
+        // màu header cố định bất kể trạng thái cuộn.
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        centerTitle: false,
         titleTextStyle: TextStyle(
           color: textPrimaryColor,
           fontSize: 20,

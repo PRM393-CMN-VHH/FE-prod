@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:prm393/core/constants/app_messages.dart';
 import 'package:prm393/features/cart/providers/cart_provider.dart';
 import 'package:prm393/features/cart/screens/checkout_screen.dart';
 import 'package:prm393/features/cart/widgets/cart_item_card.dart';
@@ -25,15 +26,15 @@ class CartScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              "Giỏ hàng đang trống",
+              AppMessage.cartEmptyTitle.text,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 color: AppTheme.textSecondaryColor,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              "Hãy chọn hoa bạn thích để thêm vào giỏ",
-              style: TextStyle(color: AppTheme.textSecondaryColor),
+            Text(
+              AppMessage.cartEmptyHint.text,
+              style: const TextStyle(color: AppTheme.textSecondaryColor),
             ),
           ],
         ),
@@ -62,10 +63,7 @@ class CartScreen extends StatelessWidget {
                 ),
                 onIncrease: () {
                   if (item.quantity >= product.stock) {
-                    _showMessage(
-                      context,
-                      'Không thể vượt quá số lượng tồn kho.',
-                    );
+                    _showMessage(context, AppMessage.stockLimitReached.text);
                     return;
                   }
                   _updateQuantity(
@@ -101,7 +99,7 @@ class CartScreen extends StatelessWidget {
     if (!success && context.mounted) {
       _showMessage(
         context,
-        provider.errorMessage ?? 'Không thể xóa sản phẩm. Vui lòng thử lại.',
+        provider.errorMessage ?? AppMessage.removeFromCartFailed.text,
         isError: true,
       );
     }
@@ -117,8 +115,7 @@ class CartScreen extends StatelessWidget {
     if (!success && context.mounted) {
       _showMessage(
         context,
-        provider.errorMessage ??
-            'Không thể cập nhật số lượng. Vui lòng thử lại.',
+        provider.errorMessage ?? AppMessage.updateQuantityFailed.text,
         isError: true,
       );
     }

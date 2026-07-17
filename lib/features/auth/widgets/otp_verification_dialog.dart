@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:prm393/core/constants/app_messages.dart';
 import 'package:prm393/core/theme/app_theme.dart';
 import 'package:prm393/features/auth/providers/auth_provider.dart';
 
@@ -17,11 +18,11 @@ Future<void> showOtpVerificationDialog(
     barrierDismissible: false,
     builder: (dialogContext) {
       return AlertDialog(
-        title: const Text("Xác thực OTP"),
+        title: Text(AppMessage.otpTitle.text),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text("Mã OTP gồm 6 chữ số đã được gửi đến email của bạn."),
+            Text(AppMessage.otpSentToEmail.text),
             const SizedBox(height: 16),
             TextField(
               controller: otpController,
@@ -37,14 +38,14 @@ Future<void> showOtpVerificationDialog(
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text("Hủy"),
+            child: Text(AppMessage.cancelAction.text),
           ),
           ElevatedButton(
             onPressed: () async {
               final otp = otpController.text.trim();
               if (otp.length != 6) {
                 ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(content: Text("Vui lòng nhập đủ 6 số OTP")),
+                  SnackBar(content: Text(AppMessage.otpIncomplete.text)),
                 );
                 return;
               }
@@ -63,14 +64,14 @@ Future<void> showOtpVerificationDialog(
               if (!context.mounted) return;
               if (success) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Registration successful!"),
+                  SnackBar(
+                    content: Text(AppMessage.registrationSuccess.text),
                     backgroundColor: AppTheme.primaryColor,
                   ),
                 );
               }
             },
-            child: const Text("Xác thực & Đăng ký"),
+            child: Text(AppMessage.otpVerifyAndRegister.text),
           ),
         ],
       );

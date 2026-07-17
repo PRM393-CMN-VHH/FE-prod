@@ -5,6 +5,7 @@ import 'package:prm393/features/orders/providers/order_provider.dart';
 import 'package:prm393/features/catalog/providers/product_provider.dart';
 import 'package:prm393/features/orders/widgets/order_list.dart';
 import 'package:prm393/features/cart/screens/vnpay_payment_screen.dart';
+import 'package:prm393/core/constants/app_messages.dart';
 import 'package:prm393/core/theme/app_theme.dart';
 import 'package:prm393/core/utils/payment_navigation_signal.dart';
 
@@ -113,8 +114,8 @@ class _OrderScreenState extends State<OrderScreen>
             _tabController.animateTo(1);
             requestPaidOrdersView();
             orderMessenger.showSnackBar(
-              const SnackBar(
-                content: Text("Thanh toán thành công!"),
+              SnackBar(
+                content: Text(AppMessage.paymentSuccessTitle.text),
                 backgroundColor: AppTheme.primaryColor,
               ),
             );
@@ -124,7 +125,10 @@ class _OrderScreenState extends State<OrderScreen>
             orderMessenger.showSnackBar(
               SnackBar(
                 content: Text(
-                  "Thanh toán thất bại: ${error['message'] ?? 'Đã hủy'}",
+                  AppMessage.paymentFailed.format([
+                    error['message'] ??
+                        AppMessage.paymentCancelledFallback.text,
+                  ]),
                 ),
                 backgroundColor: Colors.redAccent,
               ),

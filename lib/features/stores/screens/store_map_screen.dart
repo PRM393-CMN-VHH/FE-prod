@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart'
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:prm393/core/constants/app_messages.dart';
 import 'package:prm393/features/stores/models/store_location.dart';
 import 'package:prm393/features/stores/widgets/store_info_drawer.dart';
 import 'package:prm393/core/network/api_service.dart';
@@ -80,8 +81,8 @@ class _MapScreenState extends State<MapScreen> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Không thể mở ứng dụng bản đồ"),
+          SnackBar(
+            content: Text(AppMessage.mapOpenFailed.text),
             backgroundColor: Colors.redAccent,
           ),
         );

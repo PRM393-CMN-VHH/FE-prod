@@ -14,24 +14,17 @@ class NotificationModel {
   });
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
+    final rawId = json['notificationId'] ?? json['id'] ?? 0;
+    final rawTime = json['createdAt'] ?? json['timestamp'];
     return NotificationModel(
-      id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
-      title: json['title'] as String,
-      content: json['content'] as String,
-      timestamp: json['timestamp'] != null
-          ? DateTime.parse(json['timestamp'] as String)
+      id: rawId is int ? rawId : int.parse(rawId.toString()),
+      title: json['title'] as String? ?? '',
+      content: json['content'] as String? ?? '',
+      timestamp: rawTime != null
+          ? DateTime.parse(rawTime as String)
           : DateTime.now(),
-      isRead: json['is_read'] == true || json['is_read'] == 1,
+      isRead:
+          json['read'] == true || json['is_read'] == true || json['is_read'] == 1,
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'content': content,
-      'timestamp': timestamp.toIso8601String(),
-      'is_read': isRead ? 1 : 0,
-    };
   }
 }

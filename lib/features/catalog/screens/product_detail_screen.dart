@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:prm393/core/constants/app_messages.dart';
 import 'package:prm393/features/catalog/models/product.dart';
 import 'package:prm393/features/cart/providers/cart_provider.dart';
-import 'package:prm393/features/notifications/providers/notification_provider.dart';
 import 'package:prm393/features/catalog/providers/product_provider.dart';
 import 'package:prm393/features/catalog/widgets/product_detail_widgets.dart';
 import 'package:prm393/core/theme/app_theme.dart';
@@ -74,15 +74,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   void _addToCart() async {
     final cartProv = Provider.of<CartProvider>(context, listen: false);
-    final notifProv = Provider.of<NotificationProvider>(context, listen: false);
 
     final added = await cartProv.addToCart(_product, _quantity);
     if (!added && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            cartProv.errorMessage ??
-                "Không thể thêm sản phẩm vào giỏ. Vui lòng thử lại.",
+            cartProv.errorMessage ?? AppMessage.addToCartFailed.text,
           ),
           backgroundColor: Colors.redAccent,
         ),
@@ -93,7 +91,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Đã thêm $_quantity x ${_product.name} vào giỏ hàng"),
+          content: Text(
+            AppMessage.addedToCart.format([_quantity, _product.name]),
+          ),
           backgroundColor: AppTheme.primaryColor,
           action: SnackBarAction(
             label: "Xem giỏ",
@@ -105,12 +105,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             },
           ),
         ),
-      );
-
-      // Trigger a brief notification milestone
-      await notifProv.triggerNotification(
-        "Đã thêm vào giỏ",
-        "${_product.name} (SL: $_quantity) đã được thêm vào giỏ hàng.",
       );
     }
   }

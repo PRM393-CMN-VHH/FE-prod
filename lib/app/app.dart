@@ -18,6 +18,14 @@ class FlowerShopApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         initialRoute: AppRoutes.auth,
         routes: AppRoutes.routes,
+        // Chạm ra ngoài ô nhập liệu ở bất kỳ màn hình nào sẽ tắt bàn phím.
+        builder: (context, child) {
+          return GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+            child: child,
+          );
+        },
       ),
     );
   }

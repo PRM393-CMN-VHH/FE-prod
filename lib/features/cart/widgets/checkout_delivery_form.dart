@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:prm393/core/constants/app_messages.dart';
 
 class CheckoutDeliveryForm extends StatelessWidget {
   final TextEditingController nameController;
@@ -30,7 +31,7 @@ class CheckoutDeliveryForm extends StatelessWidget {
           ),
           validator: (value) {
             if (value == null || value.trim().isEmpty) {
-              return "Vui lòng nhập tên người nhận";
+              return AppMessage.recipientNameRequired.text;
             }
             return null;
           },
@@ -45,7 +46,7 @@ class CheckoutDeliveryForm extends StatelessWidget {
           ),
           validator: (value) {
             if (value == null || value.trim().isEmpty) {
-              return "Vui lòng nhập số điện thoại";
+              return AppMessage.phoneRequired.text;
             }
             return null;
           },
@@ -60,7 +61,7 @@ class CheckoutDeliveryForm extends StatelessWidget {
           ),
           validator: (value) {
             if (value == null || value.trim().isEmpty) {
-              return "Vui lòng nhập địa chỉ giao hàng";
+              return AppMessage.deliveryAddressRequired.text;
             }
             return null;
           },

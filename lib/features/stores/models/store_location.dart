@@ -18,8 +18,9 @@ class StoreLocation {
   });
 
   factory StoreLocation.fromJson(Map<String, dynamic> json) {
+    final rawId = json['storeId'] ?? json['id'] ?? 0;
     return StoreLocation(
-      id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
+      id: rawId is int ? rawId : int.parse(rawId.toString()),
       name: json['name'] as String,
       address: json['address'] as String,
       phone: json['phone'] as String,

@@ -38,12 +38,13 @@ class _AdminDashboardTabState extends State<AdminDashboardTab> {
           return AdminErrorState(error: snapshot.error!);
         }
         final data = snapshot.data!;
-        final stats = [
+
+        final totals = [
           (
             "Khách hàng",
             data['totalUsers'],
             Icons.people_outline,
-            Colors.blue.shade700,
+            AdminPalette.info,
           ),
           (
             "Sản phẩm",
@@ -55,90 +56,89 @@ class _AdminDashboardTabState extends State<AdminDashboardTab> {
             "Đơn hàng",
             data['totalOrders'],
             Icons.receipt_long_outlined,
-            Colors.indigo.shade700,
-          ),
-          (
-            "Pending",
-            data['pendingCount'],
-            Icons.hourglass_empty,
-            Colors.orange.shade800,
-          ),
-          (
-            "Confirmed",
-            data['confirmedCount'],
-            Icons.verified_outlined,
-            Colors.blue.shade700,
-          ),
-          (
-            "Shipped",
-            data['shippedCount'],
-            Icons.local_shipping_outlined,
-            Colors.indigo.shade700,
-          ),
-          (
-            "Delivered",
-            data['deliveredCount'],
-            Icons.check_circle_outline,
-            Colors.green.shade700,
-          ),
-          (
-            "Cancelled",
-            data['cancelledCount'],
-            Icons.cancel_outlined,
-            Colors.red.shade700,
+            AdminPalette.progress,
           ),
         ];
+
+        final pending = (data['pendingCount'] as num?)?.toInt() ?? 0;
+        final confirmed = (data['confirmedCount'] as num?)?.toInt() ?? 0;
+        final shipped = (data['shippedCount'] as num?)?.toInt() ?? 0;
+        final delivered = (data['deliveredCount'] as num?)?.toInt() ?? 0;
+        final cancelled = (data['cancelledCount'] as num?)?.toInt() ?? 0;
+        final totalForRatio =
+            pending + confirmed + shipped + delivered + cancelled;
+
         return RefreshIndicator(
           onRefresh: _refresh,
           color: AppTheme.primaryColor,
-          child: GridView.builder(
+          child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 1.25,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-            ),
-            itemCount: stats.length,
-            itemBuilder: (_, index) {
-              final stat = stats[index];
-              return AdminCard(
+            children: [
+              const AdminSectionHeader(title: "Tổng quan"),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  childAspectRatio: 0.8,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                ),
+                itemCount: totals.length,
+                itemBuilder: (_, index) {
+                  final stat = totals[index];
+                  return AdminStatCard(
+                    label: stat.$1,
+                    value: stat.$2,
+                    icon: stat.$3,
+                    color: stat.$4,
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+              const AdminSectionHeader(title: "Đơn hàng theo trạng thái"),
+              AdminCard(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: stat.$4.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(stat.$3, color: stat.$4, size: 20),
+                    AdminStatusBreakdownRow(
+                      label: "Chờ xử lý",
+                      count: pending,
+                      total: totalForRatio,
+                      color: AdminPalette.warning,
+                      icon: Icons.hourglass_empty,
                     ),
-                    const Spacer(),
-                    Text(
-                      "${stat.$2 ?? 0}",
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(
-                            color: AppTheme.textPrimaryColor,
-                            fontWeight: FontWeight.w800,
-                          ),
+                    AdminStatusBreakdownRow(
+                      label: "Đã xác nhận",
+                      count: confirmed,
+                      total: totalForRatio,
+                      color: AdminPalette.info,
+                      icon: Icons.verified_outlined,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      stat.$1,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondaryColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    AdminStatusBreakdownRow(
+                      label: "Đang giao",
+                      count: shipped,
+                      total: totalForRatio,
+                      color: AdminPalette.progress,
+                      icon: Icons.local_shipping_outlined,
+                    ),
+                    AdminStatusBreakdownRow(
+                      label: "Đã giao",
+                      count: delivered,
+                      total: totalForRatio,
+                      color: AdminPalette.success,
+                      icon: Icons.check_circle_outline,
+                    ),
+                    AdminStatusBreakdownRow(
+                      label: "Đã hủy",
+                      count: cancelled,
+                      total: totalForRatio,
+                      color: AdminPalette.danger,
+                      icon: Icons.cancel_outlined,
                     ),
                   ],
                 ),
-              );
-            },
+              ),
+            ],
           ),
         );
       },

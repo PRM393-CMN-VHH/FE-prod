@@ -29,11 +29,14 @@ class NotificationProvider extends ChangeNotifier {
 
   Future<void> markAsRead(int notificationId) async {
     final index = _notifications.indexWhere((n) => n.id == notificationId);
-    if (index >= 0) {
-      _notifications[index].isRead = true;
-      notifyListeners();
-      await _apiService.saveNotifications(_notifications);
-    }
+    if (index < 0 || _notifications[index].isRead) return;
+
+    // Cập nhật UI ngay, đồng bộ server phía sau
+    _notifications[index].isRead = true;
+    notifyListeners();
+    try {
+      await _apiService.markNotificationRead(notificationId);
+    } catch (_) {}
   }
 
   Future<void> markAllAsRead() async {
@@ -41,11 +44,8 @@ class NotificationProvider extends ChangeNotifier {
       n.isRead = true;
     }
     notifyListeners();
-    await _apiService.saveNotifications(_notifications);
-  }
-
-  Future<void> triggerNotification(String title, String content) async {
-    await _apiService.addNotification(title: title, content: content);
-    await loadNotifications();
+    try {
+      await _apiService.markAllNotificationsRead();
+    } catch (_) {}
   }
 }

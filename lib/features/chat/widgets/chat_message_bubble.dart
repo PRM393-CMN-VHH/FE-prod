@@ -4,12 +4,17 @@ import 'package:prm393/features/chat/models/message.dart';
 
 class ChatMessageBubble extends StatelessWidget {
   final MessageModel message;
+  final bool isMine;
 
-  const ChatMessageBubble({super.key, required this.message});
+  const ChatMessageBubble({
+    super.key,
+    required this.message,
+    required this.isMine,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final isUser = message.sender == 'user';
+    final isUser = isMine;
     final timeStr =
         "${message.timestamp.hour.toString().padLeft(2, '0')}:${message.timestamp.minute.toString().padLeft(2, '0')}";
 

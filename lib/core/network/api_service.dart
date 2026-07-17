@@ -11,6 +11,7 @@ import 'package:prm393/features/cart/models/cart_item.dart';
 import 'package:prm393/features/orders/models/order.dart';
 import 'package:prm393/features/notifications/models/app_notification.dart';
 import 'package:prm393/features/chat/models/message.dart';
+import 'package:prm393/features/chat/models/conversation_summary.dart';
 import 'package:prm393/features/stores/models/store_location.dart';
 import 'package:prm393/core/utils/error_translator.dart';
 
@@ -27,7 +28,7 @@ class ApiService {
     if (kIsWeb) {
       return "http://localhost:3636";
     }
-    return "http://172.20.10.6:3636";
+    return "http://10.0.2.2:3636";
   }
 
   // Auth Routes
@@ -76,12 +77,6 @@ class ApiService {
       "$backendBaseUrl/admin/products/edit";
   static String get apiAdminProductDelete =>
       "$backendBaseUrl/admin/products/delete";
-  static String get apiAdminProductCombo =>
-      "$backendBaseUrl/admin/products/combo";
-  static String get apiAdminProductComboAddItem =>
-      "$backendBaseUrl/admin/products/combo/add-item";
-  static String get apiAdminProductComboRemoveItem =>
-      "$backendBaseUrl/admin/products/combo/remove-item";
   static String get apiAdminUsers => "$backendBaseUrl/admin/users";
   static String get apiAdminUserActivate =>
       "$backendBaseUrl/admin/users/activate";
@@ -245,8 +240,6 @@ class ApiService {
   // Local Storage Keys
   static const String _keyUser = 'api_user';
   static const String _keyCart = 'api_cart';
-  static const String _keyNotifications = 'api_notifications';
-  static const String _keyMessages = 'api_messages';
 
   // In-memory state
   UserModel? _currentUser;
@@ -711,15 +704,8 @@ class ApiService {
       orderPayload['paymentUrl'] = paymentUrl;
     }
 
-    final order = OrderModel.fromJson(orderPayload, orderItems);
-
-    await addNotification(
-      title: "Order Placed",
-      content:
-          "Thank you for shopping. Your order #${order.id} has been placed. Payment: ${order.paymentMethod}.",
-    );
-
-    return order;
+    // Thông báo "Đặt hàng thành công" do backend tạo khi xử lý place-order
+    return OrderModel.fromJson(orderPayload, orderItems);
   }
 
   // ==========================================
@@ -812,47 +798,6 @@ class ApiService {
     await deleteRequest("$apiAdminProductDelete/$productId");
   }
 
-  Future<List<Product>> getAdminComboProducts() async {
-    final response = await getRequest(apiAdminProductCombo);
-    if (response is List) {
-      return response
-          .map((json) => Product.fromJson(json as Map<String, dynamic>))
-          .toList();
-    }
-    throw Exception("Invalid combo products response from server");
-  }
-
-  Future<Map<String, dynamic>> getAdminComboItems(int comboId) async {
-    final response = await getRequest("$apiAdminProductComboAddItem/$comboId");
-    if (response is Map<String, dynamic>) return response;
-    throw Exception("Invalid combo items response from server");
-  }
-
-  Future<List<dynamic>> saveAdminComboItem({
-    required int comboId,
-    required int productId,
-    required int quantity,
-  }) async {
-    final uri = Uri.parse(apiAdminProductComboAddItem).replace(
-      queryParameters: {
-        'comboId': comboId.toString(),
-        'productId': productId.toString(),
-        'quantity': quantity.toString(),
-      },
-    );
-    final response = await postEmptyRequest(uri.toString());
-    if (response is List) return response;
-    throw Exception("Invalid save combo item response from server");
-  }
-
-  Future<List<dynamic>> removeAdminComboItem(int comboItemId) async {
-    final response = await deleteRequest(
-      "$apiAdminProductComboRemoveItem/$comboItemId",
-    );
-    if (response is List) return response;
-    throw Exception("Invalid remove combo item response from server");
-  }
-
   Future<Map<String, dynamic>> getAdminUsers({
     int pageNo = 1,
     String? search,
@@ -891,198 +836,125 @@ class ApiService {
   }
 
   // ==========================================
-  // NOTIFICATION APIs
+  // NOTIFICATION APIs (server-side, per user)
   // ==========================================
 
+  static String get apiNotifications => "$backendBaseUrl/api/notifications";
+  static String apiNotificationRead(int id) =>
+      "$backendBaseUrl/api/notifications/$id/read";
+  static String get apiNotificationsReadAll =>
+      "$backendBaseUrl/api/notifications/read-all";
+
   Future<List<NotificationModel>> getNotifications() async {
-    final prefs = await SharedPreferences.getInstance();
-    final notifStr = prefs.getString(_keyNotifications);
-
-    if (notifStr == null) {
-      // Seed default notifications
-      final defaultNotifs = [
-        NotificationModel(
-          id: 1,
-          title: "Welcome to Tiệm Hoa Xinh",
-          content:
-              "Get fresh blossoms delivered to your door. Log in and discover premium floral catalogs.",
-          timestamp: DateTime.now().subtract(const Duration(hours: 4)),
-          isRead: false,
-        ),
-        NotificationModel(
-          id: 2,
-          title: "Special Anniversary Promo",
-          content:
-              "Enjoy up to 20% discount on all elegant rose bouquets this weekend.",
-          timestamp: DateTime.now().subtract(const Duration(days: 1)),
-          isRead: true,
-        ),
-      ];
-      await saveNotifications(defaultNotifs);
-      return defaultNotifs;
-    }
-
-    try {
-      final List<dynamic> list = jsonDecode(notifStr) as List<dynamic>;
-      return list
+    final response = await getRequest(apiNotifications);
+    if (response is List) {
+      return response
           .map(
             (json) => NotificationModel.fromJson(json as Map<String, dynamic>),
           )
           .toList();
-    } catch (_) {
-      return [];
     }
+    throw Exception("Invalid notifications response from server");
   }
 
-  Future<void> saveNotifications(List<NotificationModel> list) async {
-    final prefs = await SharedPreferences.getInstance();
-    final notifJson = list.map((n) => n.toJson()).toList();
-    await prefs.setString(_keyNotifications, jsonEncode(notifJson));
+  Future<void> markNotificationRead(int notificationId) async {
+    await postEmptyRequest(apiNotificationRead(notificationId));
   }
 
-  Future<void> addNotification({
-    required String title,
-    required String content,
-  }) async {
-    final list = await getNotifications();
-    final newId = list.isEmpty
-        ? 1
-        : list.map((n) => n.id).reduce((a, b) => a > b ? a : b) + 1;
-    list.insert(
-      0,
-      NotificationModel(
-        id: newId,
-        title: title,
-        content: content,
-        timestamp: DateTime.now(),
-        isRead: false,
-      ),
-    );
-    await saveNotifications(list);
+  Future<void> markAllNotificationsRead() async {
+    await postEmptyRequest(apiNotificationsReadAll);
   }
 
   // ==========================================
-  // MESSAGING / CHAT APIs
+  // MESSAGING / CHAT APIs (real-time via WebSocket, REST for history)
   // ==========================================
 
-  Future<List<MessageModel>> getMessages() async {
-    final prefs = await SharedPreferences.getInstance();
-    final msgStr = prefs.getString(_keyMessages);
+  static String get wsBaseUrl =>
+      backendBaseUrl.replaceFirst(RegExp(r'^http'), 'ws');
+  static String get wsChatUrl => "$wsBaseUrl/ws/chat";
 
-    if (msgStr == null) {
-      // Seed default support welcoming message
-      final defaultMsgs = [
-        MessageModel(
-          id: 1,
-          content:
-              "Welcome to Tiệm Hoa Xinh! Let us know if you have questions regarding flower care, delivery options, or boutique options. We are here to assist.",
-          sender: "store",
-          timestamp: DateTime.now().subtract(const Duration(minutes: 5)),
-        ),
-      ];
-      await saveMessages(defaultMsgs);
-      return defaultMsgs;
-    }
+  static String get apiChatConversation => "$backendBaseUrl/api/chat/conversation";
+  static String get apiChatConversations => "$backendBaseUrl/api/chat/conversations";
+  static String apiChatConversationMessages(int conversationId) =>
+      "$backendBaseUrl/api/chat/conversations/$conversationId/messages";
+  static String get apiChatSendMyMessage => "$backendBaseUrl/api/chat/messages";
+  static String apiChatMarkRead(int conversationId) =>
+      "$backendBaseUrl/api/chat/conversations/$conversationId/read";
+  static String get apiChatUnreadCount => "$backendBaseUrl/api/chat/unread-count";
 
-    try {
-      final List<dynamic> list = jsonDecode(msgStr) as List<dynamic>;
-      return list
-          .map((json) => MessageModel.fromJson(json as Map<String, dynamic>))
-          .toList();
-    } catch (_) {
-      return [];
+  // The session cookie carrying auth, needed to authenticate the WebSocket handshake.
+  Future<String?> getSessionCookie() async {
+    if (_sessionCookie == null) {
+      final prefs = await SharedPreferences.getInstance();
+      _sessionCookie = prefs.getString('session_cookie');
     }
+    return _sessionCookie;
   }
 
-  Future<void> saveMessages(List<MessageModel> list) async {
-    final prefs = await SharedPreferences.getInstance();
-    final msgJson = list.map((m) => m.toJson()).toList();
-    await prefs.setString(_keyMessages, jsonEncode(msgJson));
+  // Customer: fetch (or implicitly create) their own conversation + full history.
+  Future<Map<String, dynamic>> getMyConversation() async {
+    final result = await getRequest(apiChatConversation);
+    return result as Map<String, dynamic>;
   }
 
-  Future<MessageModel> sendMessage(String content, String sender) async {
-    if (content.trim().isEmpty) {
-      throw Exception("Message content cannot be empty.");
-    }
-
-    final list = await getMessages();
-    final newId = list.isEmpty
-        ? 1
-        : list.map((m) => m.id).reduce((a, b) => a > b ? a : b) + 1;
-
-    final message = MessageModel(
-      id: newId,
-      content: content,
-      sender: sender,
-      timestamp: DateTime.now(),
-    );
-
-    list.add(message);
-    await saveMessages(list);
-
-    // Sync to Supabase if available
-    if (isSupabaseInitialized && _currentUser != null) {
-      try {
-        final mJson = message.toJson();
-        mJson['user_id'] = _currentUser!.id;
-        await _supabase!.from('messages').insert(mJson);
-      } catch (_) {}
-    }
-
-    return message;
+  // Admin: list of all customer conversations with last message + unread count.
+  Future<List<ConversationSummary>> getConversations() async {
+    final result = await getRequest(apiChatConversations);
+    return (result as List<dynamic>)
+        .map((json) => ConversationSummary.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
-  // Simulates a store representative response based on user input terms.
-  Future<MessageModel?> getMockAutoReply(String userMessage) async {
-    await Future.delayed(const Duration(milliseconds: 1000));
+  Future<List<MessageModel>> getConversationMessages(int conversationId) async {
+    final result = await getRequest(apiChatConversationMessages(conversationId));
+    return (result as List<dynamic>)
+        .map((json) => MessageModel.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
 
-    final normalized = userMessage.toLowerCase();
-    String reply =
-        "Thank you for reaching out. We have received your query and will reply shortly.";
+  // Customer sends a message in their own conversation.
+  Future<MessageModel> sendMyMessage(String content) async {
+    final result = await postRequest(apiChatSendMyMessage, {'content': content});
+    return MessageModel.fromJson(result as Map<String, dynamic>);
+  }
 
-    if (normalized.contains("giá") ||
-        normalized.contains("price") ||
-        normalized.contains("mua")) {
-      reply =
-          "Our flower bouquets range from 35.00 to 65.00. We currently have sales on Blush Romance and Spring Tulip Symphony! Check our Home Page for prices.";
-    } else if (normalized.contains("ship") ||
-        normalized.contains("giao") ||
-        normalized.contains("delivery")) {
-      reply =
-          "We offer same-day delivery across Ho Chi Minh City for orders placed before 16:00. Standard shipping is 5.00, and free for orders over 100.00.";
-    } else if (normalized.contains("bảo hành") ||
-        normalized.contains("chăm sóc") ||
-        normalized.contains("care") ||
-        normalized.contains("tươi")) {
-      reply =
-          "To keep your flowers fresh: trim stems at 45 degrees, place in cold fresh water with flower food, and keep away from heat/direct sunlight.";
-    } else if (normalized.contains("địa chỉ") ||
-        normalized.contains("map") ||
-        normalized.contains("address") ||
-        normalized.contains("ở đâu")) {
-      reply =
-          "Our main store is located at 456 Hai Ba Trung, District 1, Ho Chi Minh City. You can check the Map section for working hours and directions.";
-    }
+  // Admin replies in a specific conversation.
+  Future<MessageModel> sendMessageToConversation(
+    int conversationId,
+    String content,
+  ) async {
+    final result = await postRequest(apiChatConversationMessages(conversationId), {
+      'content': content,
+    });
+    return MessageModel.fromJson(result as Map<String, dynamic>);
+  }
 
-    return await sendMessage(reply, "store");
+  Future<void> markConversationRead(int conversationId) async {
+    await postEmptyRequest(apiChatMarkRead(conversationId));
+  }
+
+  Future<int> getUnreadChatCount() async {
+    final result = await getRequest(apiChatUnreadCount);
+    final count = (result as Map<String, dynamic>)['unreadCount'];
+    return count is int ? count : int.tryParse(count.toString()) ?? 0;
   }
 
   // ==========================================
   // STORE LOCATION APIs
   // ==========================================
 
+  static String get apiStoreLocations => "$backendBaseUrl/api/store-locations";
+
   Future<List<StoreLocation>> getStoreLocations() async {
-    if (isSupabaseInitialized) {
-      try {
-        final List<dynamic> data = await _supabase!
-            .from('store_locations')
-            .select();
-        return data
+    try {
+      final response = await getRequest(apiStoreLocations);
+      if (response is List && response.isNotEmpty) {
+        return response
             .map((json) => StoreLocation.fromJson(json as Map<String, dynamic>))
             .toList();
-      } catch (_) {
-        return _mockLocations;
       }
+    } catch (_) {
+      // Backend không truy cập được — dùng dữ liệu dự phòng bên dưới
     }
     return _mockLocations;
   }

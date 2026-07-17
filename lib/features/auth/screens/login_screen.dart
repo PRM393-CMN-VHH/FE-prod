@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:prm393/core/constants/app_messages.dart';
 import 'package:prm393/features/auth/providers/auth_provider.dart';
 import 'package:prm393/features/auth/widgets/inline_auth_error.dart';
 import 'package:prm393/features/auth/widgets/login_header.dart';
@@ -68,8 +69,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Login successful!"),
+          SnackBar(
+            content: Text(AppMessage.loginSuccess.text),
             backgroundColor: AppTheme.primaryColor,
           ),
         );
@@ -124,7 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       onChanged: (_) => _clearBackendError(),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return "Vui lòng nhập họ tên";
+                          return AppMessage.nameRequired.text;
                         }
                         return null;
                       },
@@ -142,10 +143,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     onChanged: (_) => _clearBackendError(),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return "Vui lòng nhập email";
+                        return AppMessage.emailRequired.text;
                       }
                       if (!value.contains('@')) {
-                        return "Email không hợp lệ";
+                        return AppMessage.emailInvalid.text;
                       }
                       return null;
                     },
@@ -163,7 +164,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       onChanged: (_) => _clearBackendError(),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return "Vui lòng nhập số điện thoại";
+                          return AppMessage.phoneRequired.text;
                         }
                         return null;
                       },
@@ -178,7 +179,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       onChanged: (_) => _clearBackendError(),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return "Vui lòng nhập địa chỉ giao hàng";
+                          return AppMessage.deliveryAddressRequired.text;
                         }
                         return null;
                       },
@@ -208,10 +209,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     onChanged: (_) => _clearBackendError(),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return "Vui lòng nhập mật khẩu";
+                        return AppMessage.passwordRequired.text;
                       }
                       if (value.length < 6) {
-                        return "Mật khẩu phải có ít nhất 6 ký tự";
+                        return AppMessage.passwordTooShort.text;
                       }
                       return null;
                     },

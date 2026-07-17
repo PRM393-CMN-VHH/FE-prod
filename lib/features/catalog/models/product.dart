@@ -105,6 +105,7 @@ class Product {
       'productName': name,
       'description': description,
       'price': price,
+      'promoPrice': promoPrice,
       'stock': stock,
       'imageUrl': imageUrl,
       'category': {'categoryId': categoryId},
