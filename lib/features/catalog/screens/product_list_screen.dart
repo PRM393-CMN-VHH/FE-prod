@@ -86,67 +86,77 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     child: Container(
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.grey.shade200),
+                        borderRadius: BorderRadius.circular(28),
+                        border: Border.all(color: Colors.grey.shade300, width: 1.2),
                       ),
-                      child: Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(
-                              Icons.list_alt,
-                              color: AppTheme.textSecondaryColor,
-                            ),
-                            tooltip: "Chọn dịp",
-                            onPressed: () => _showCategoryPicker(context),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: VerticalDivider(
-                              width: 1,
-                              thickness: 1,
-                              color: Colors.grey.shade300,
-                            ),
-                          ),
-                          Expanded(
-                            child: TextField(
-                              controller: _searchController,
-                              decoration: InputDecoration(
-                                hintText: "Tìm kiếm hoa...",
-                                prefixIcon: const Icon(
-                                  Icons.search,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(26.8),
+                        child: Container(
+                          padding: const EdgeInsets.only(left: 4, right: 4),
+                          color: Colors.white,
+                          child: Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.menu,
                                   color: AppTheme.textSecondaryColor,
                                 ),
-                                suffixIcon: _searchController.text.isNotEmpty
-                                    ? IconButton(
-                                        icon: const Icon(
-                                          Icons.clear,
-                                          color: AppTheme.textSecondaryColor,
-                                        ),
-                                        onPressed: () {
-                                          _searchController.clear();
-                                          productProvider.setSearchQuery('');
-                                          setState(() {});
-                                        },
-                                      )
-                                    : null,
-                                border: InputBorder.none,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  vertical: 12,
+                                tooltip: "Chọn dịp",
+                                onPressed: () => _showCategoryPicker(context),
+                              ),
+                              Container(
+                                width: 1,
+                                height: 24,
+                                color: Colors.grey.shade300,
+                              ),
+                              const SizedBox(width: 10),
+                              const Icon(
+                                Icons.search,
+                                color: AppTheme.textSecondaryColor,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: TextField(
+                                  controller: _searchController,
+                                  decoration: const InputDecoration(
+                                    hintText: "Tìm kiếm hoa...",
+                                    border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    contentPadding: EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                  ),
+                                  onChanged: (value) {
+                                    setState(() {});
+                                    _searchDebounce?.cancel();
+                                    _searchDebounce = Timer(
+                                      const Duration(milliseconds: 350),
+                                      () {
+                                        productProvider.setSearchQuery(value);
+                                      },
+                                    );
+                                  },
                                 ),
                               ),
-                              onChanged: (value) {
-                                setState(() {});
-                                _searchDebounce?.cancel();
-                                _searchDebounce = Timer(
-                                  const Duration(milliseconds: 350),
-                                  () {
-                                    productProvider.setSearchQuery(value);
+                              if (_searchController.text.isNotEmpty)
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.clear,
+                                    color: AppTheme.textSecondaryColor,
+                                    size: 20,
+                                  ),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    productProvider.setSearchQuery('');
+                                    setState(() {});
                                   },
-                                );
-                              },
-                            ),
+                                )
+                              else
+                                const SizedBox(width: 12),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
@@ -154,7 +164,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   Container(
                     decoration: BoxDecoration(
                       color: AppTheme.primaryColor,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(color: AppTheme.primaryColor, width: 1.2),
                     ),
                     child: IconButton(
                       icon: const Icon(Icons.tune, color: Colors.white),

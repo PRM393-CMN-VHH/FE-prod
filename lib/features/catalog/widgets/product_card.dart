@@ -17,6 +17,9 @@ class ProductCard extends StatelessWidget {
 
     return Card(
       clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8.0),
+      ),
       child: InkWell(
         onTap: onTap,
         child: Column(
@@ -106,7 +109,7 @@ class _PromotionBadge extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: AppTheme.primaryColor,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: const Padding(
         padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
