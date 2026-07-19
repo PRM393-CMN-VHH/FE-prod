@@ -5,6 +5,12 @@ import 'package:prm393/core/network/api_service.dart';
 import 'package:prm393/core/utils/error_translator.dart';
 
 class CartProvider extends ChangeNotifier {
+  // Flat shipping fee, waived for orders at/above the free-shipping threshold.
+  // Keep in sync with CartController.SHIPPING_FEE / FREE_SHIPPING_THRESHOLD
+  // on the backend, which is the source of truth for the amount actually charged.
+  static const double shippingFeeFlat = 30000;
+  static const double freeShippingThreshold = 500000;
+
   final ApiService _apiService = ApiService();
 
   List<CartItem> _items = [];
@@ -25,10 +31,16 @@ class CartProvider extends ChangeNotifier {
 
   double get shippingFee {
     if (_items.isEmpty) return 0.0;
-    return subtotalAmount >= 500000.0 ? 0.0 : 30000.0;
+    return subtotalAmount >= freeShippingThreshold ? 0.0 : shippingFeeFlat;
   }
 
   double get totalAmount => subtotalAmount + shippingFee;
+
+  // How much more the customer needs to add to qualify for free shipping (0 if already free).
+  double get amountToFreeShipping {
+    if (_items.isEmpty || subtotalAmount >= freeShippingThreshold) return 0.0;
+    return freeShippingThreshold - subtotalAmount;
+  }
 
   Future<void> loadCart(List<Product> products) async {
     _isLoading = true;

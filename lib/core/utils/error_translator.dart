@@ -23,6 +23,10 @@ class ErrorTranslator {
       return 'Không thể kết nối đến hệ thống. Vui lòng kiểm tra mạng hoặc thử lại sau.';
     }
 
+    if (lower.contains('timeoutexception') || lower.contains('timed out')) {
+      return 'Kết nối đến hệ thống quá lâu. Vui lòng kiểm tra mạng và thử lại.';
+    }
+
     if (lower.contains('not logged in') ||
         lower.contains('not authenticated') ||
         lower.contains('unauthorized')) {

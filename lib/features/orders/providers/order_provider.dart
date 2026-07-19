@@ -8,28 +8,43 @@ import 'package:prm393/core/utils/error_translator.dart';
 class OrderProvider extends ChangeNotifier {
   final ApiService _apiService = ApiService();
 
-  List<OrderModel> _orders = [];
+  // Cached per status filter (key 'ALL' = no filter / null), so switching
+  // between status tabs doesn't clobber another tab's already-loaded list.
+  final Map<String, List<OrderModel>> _ordersByStatus = {};
+  final Set<String> _loadingStatuses = {};
   List<OrderModel> _paidTransactions = [];
   bool _isLoading = false;
   String? _errorMessage;
 
-  List<OrderModel> get orders => _orders;
+  static String _key(String? status) => status ?? 'ALL';
+
+  List<OrderModel> ordersFor(String? status) =>
+      _ordersByStatus[_key(status)] ?? [];
+  bool isLoadingStatus(String? status) =>
+      _loadingStatuses.contains(_key(status));
+
+  // Back-compat accessor for callers that only care about the unfiltered list.
+  List<OrderModel> get orders => ordersFor(null);
   List<OrderModel> get paidTransactions => _paidTransactions;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
-  Future<void> loadOrders(List<Product> products) async {
-    _isLoading = true;
+  Future<void> loadOrders(List<Product> products, {String? status}) async {
+    final key = _key(status);
+    _loadingStatuses.add(key);
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _orders = await _apiService.getOrders(products);
+      _ordersByStatus[key] = await _apiService.getOrders(
+        products,
+        status: status,
+      );
     } catch (e) {
       _errorMessage = ErrorTranslator.userMessage(e);
     }
 
-    _isLoading = false;
+    _loadingStatuses.remove(key);
     notifyListeners();
   }
 
@@ -65,15 +80,47 @@ class OrderProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> cancelOrder(int orderId, List<Product> products) async {
+  // Cancelling can move an order in/out of any status tab's cached list, so
+  // drop the whole cache and just refresh the tab the user is currently on.
+  Future<bool> cancelOrder(
+    int orderId,
+    List<Product> products, {
+    String? currentStatus,
+  }) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
     try {
       await _apiService.cancelOrder(orderId);
-      _orders = await _apiService.getOrders(products);
+      _ordersByStatus.clear();
       _isLoading = false;
       notifyListeners();
+      await loadOrders(products, status: currentStatus);
+      return true;
+    } catch (e) {
+      _errorMessage = ErrorTranslator.userMessage(e);
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // Same cache-invalidation approach as cancelOrder: confirming receipt moves
+  // the order from DELIVERED to COMPLETED, affecting two tabs' caches.
+  Future<bool> confirmReceived(
+    int orderId,
+    List<Product> products, {
+    String? currentStatus,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _apiService.confirmOrderReceived(orderId);
+      _ordersByStatus.clear();
+      _isLoading = false;
+      notifyListeners();
+      await loadOrders(products, status: currentStatus);
       return true;
     } catch (e) {
       _errorMessage = ErrorTranslator.userMessage(e);
@@ -120,7 +167,8 @@ class OrderProvider extends ChangeNotifier {
         status: status,
       );
 
-      _orders.insert(0, order);
+      // A newly placed order invalidates any cached status lists.
+      _ordersByStatus.clear();
       _isLoading = false;
       notifyListeners();
       return order;

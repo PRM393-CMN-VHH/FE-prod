@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:prm393/core/constants/app_messages.dart';
 import 'package:prm393/core/theme/app_theme.dart';
 import 'package:prm393/core/utils/error_translator.dart';
+import 'package:prm393/core/utils/status_translator.dart';
 
 // A small semantic palette for the admin surface. Kept separate from
 // AppTheme (which is tuned for customer-facing screens) but chosen to sit
@@ -329,7 +330,7 @@ class AdminFilterChips extends StatelessWidget {
         separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (_, index) {
           final value = index == 0 ? null : options[index - 1];
-          final label = index == 0 ? allLabel : options[index - 1];
+          final label = index == 0 ? allLabel : StatusTranslator.orderStatus(options[index - 1]);
           final isSelected = selected == value;
           return ChoiceChip(
             label: Text(label),

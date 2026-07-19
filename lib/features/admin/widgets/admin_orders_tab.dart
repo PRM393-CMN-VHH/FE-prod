@@ -3,6 +3,7 @@ import 'package:prm393/core/constants/app_messages.dart';
 import 'package:prm393/core/network/api_service.dart';
 import 'package:prm393/core/theme/app_theme.dart';
 import 'package:prm393/core/utils/currency_formatter.dart';
+import 'package:prm393/core/utils/status_translator.dart';
 import 'package:prm393/features/admin/widgets/admin_common_widgets.dart';
 
 const _orderStatuses = [
@@ -85,7 +86,7 @@ class _AdminOrdersTabState extends State<AdminOrdersTab> {
                     color: adminStatusColor(status),
                   ),
                   title: Text(
-                    status,
+                    StatusTranslator.orderStatus(status),
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       color: isCurrent
@@ -211,7 +212,7 @@ class _AdminOrdersTabState extends State<AdminOrdersTab> {
                                     ),
                                   ),
                                   AdminStatusChip(
-                                    label: currentStatus,
+                                    label: StatusTranslator.orderStatus(currentStatus),
                                     color: adminStatusColor(currentStatus),
                                   ),
                                 ],
@@ -272,11 +273,8 @@ class _AdminOrdersTabState extends State<AdminOrdersTab> {
                                   ),
                                   if (paymentStatus.isNotEmpty)
                                     AdminStatusChip(
-                                      label: paymentStatus,
-                                      color: paymentStatus.toUpperCase() ==
-                                              "PAID"
-                                          ? AdminPalette.success
-                                          : AdminPalette.neutral,
+                                      label: StatusTranslator.paymentStatus(paymentStatus),
+                                      color: adminStatusColor(paymentStatus),
                                     ),
                                 ],
                               ),

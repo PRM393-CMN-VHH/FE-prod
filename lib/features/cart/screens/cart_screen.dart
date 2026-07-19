@@ -14,8 +14,10 @@ class CartScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final cartProvider = Provider.of<CartProvider>(context);
     final items = cartProvider.items;
+    
+    Widget body;
     if (items.isEmpty) {
-      return Center(
+      body = Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -39,54 +41,68 @@ class CartScreen extends StatelessWidget {
           ],
         ),
       );
-    }
-
-    return Column(
-      children: [
-        // Items list
-        Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: items.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final item = items[index];
-              final product = item.product;
-              return CartItemCard(
-                item: item,
-                onRemove: () => _removeItem(context, cartProvider, item.id),
-                onDecrease: () => _updateQuantity(
-                  context,
-                  cartProvider,
-                  item.id,
-                  item.quantity - 1,
-                ),
-                onIncrease: () {
-                  if (item.quantity >= product.stock) {
-                    _showMessage(context, AppMessage.stockLimitReached.text);
-                    return;
-                  }
-                  _updateQuantity(
+    } else {
+      body = Column(
+        children: [
+          // Items list
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: items.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final item = items[index];
+                final product = item.product;
+                return CartItemCard(
+                  item: item,
+                  onRemove: () => _removeItem(context, cartProvider, item.id),
+                  onDecrease: () => _updateQuantity(
                     context,
                     cartProvider,
                     item.id,
-                    item.quantity + 1,
-                  );
-                },
-              );
-            },
+                    item.quantity - 1,
+                  ),
+                  onIncrease: () {
+                    if (item.quantity >= product.stock) {
+                      _showMessage(context, AppMessage.stockLimitReached.text);
+                      return;
+                    }
+                    _updateQuantity(
+                      context,
+                      cartProvider,
+                      item.id,
+                      item.quantity + 1,
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          CartSummary(
+            subtotal: cartProvider.subtotalAmount,
+            shippingFee: cartProvider.shippingFee,
+            total: cartProvider.totalAmount,
+            amountToFreeShipping: cartProvider.amountToFreeShipping,
+            onCheckout: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CheckoutScreen()),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          "Giỏ hàng",
+          style: TextStyle(
+            fontFamily: 'serif',
+            fontWeight: FontWeight.bold,
           ),
         ),
-        CartSummary(
-          subtotal: cartProvider.subtotalAmount,
-          shippingFee: cartProvider.shippingFee,
-          total: cartProvider.totalAmount,
-          onCheckout: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const CheckoutScreen()),
-          ),
-        ),
-      ],
+      ),
+      body: body,
     );
   }
 

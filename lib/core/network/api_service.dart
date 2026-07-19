@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:prm393/features/catalog/models/category.dart';
 import 'package:prm393/features/catalog/models/product.dart';
+import 'package:prm393/features/catalog/models/review.dart';
 import 'package:prm393/features/auth/models/user.dart';
 import 'package:prm393/features/cart/models/cart_item.dart';
 import 'package:prm393/features/orders/models/order.dart';
@@ -22,13 +24,33 @@ class ApiService {
 
   // ==========================================
   // API URL CONSTANTS & CONFIGURATIONS
+  //
+  // Backend host comes from (in priority order):
+  //   1. --dart-define=API_BASE_URL=... passed to `flutter run`/`flutter build`
+  //   2. API_BASE_URL (or API_HOST + API_PORT) in the gitignored .env file at
+  //      the project root — copy .env.example -> .env and fill in your own
+  //      machine's LAN IP/port (needed for physical devices; 10.0.2.2 below
+  //      only resolves on the Android emulator, not real devices)
+  //   3. _fallbackLanIp / _fallbackPort below, if none of the above is set
   // ==========================================
 
+  static const String _apiBaseUrlOverride = String.fromEnvironment(
+    'API_BASE_URL',
+  );
+  static const String _fallbackLanIp = '192.168.1.10';
+  static const int _fallbackPort = 3636;
+
   static String get backendBaseUrl {
-    if (kIsWeb) {
-      return "http://localhost:3636";
-    }
-    return "http://10.0.2.2:3636";
+    if (_apiBaseUrlOverride.isNotEmpty) return _apiBaseUrlOverride;
+
+    final fullUrl = dotenv.maybeGet('API_BASE_URL');
+    if (fullUrl != null && fullUrl.isNotEmpty) return fullUrl;
+
+    if (kIsWeb) return 'http://localhost:$_fallbackPort';
+
+    final host = dotenv.maybeGet('API_HOST') ?? _fallbackLanIp;
+    final port = dotenv.maybeGet('API_PORT') ?? _fallbackPort.toString();
+    return 'http://$host:$port';
   }
 
   // Auth Routes
@@ -61,9 +83,15 @@ class ApiService {
   static String get apiOrderDetail => "$backendBaseUrl/order/detail";
   static String get apiOrderPay => "$backendBaseUrl/order/pay";
   static String get apiOrderCancel => "$backendBaseUrl/order/cancel";
+  static String get apiOrderConfirmReceived =>
+      "$backendBaseUrl/order/confirm-received";
   static String get apiTransactionHistory =>
       "$backendBaseUrl/transaction/history";
   static String get apiPaymentCreate => "$backendBaseUrl/payment/create";
+
+  // Reviews Routes
+  static String apiProductReviews(int productId) =>
+      "$backendBaseUrl/api/products/$productId/reviews";
 
   // Admin Routes
   static String get apiAdminLogin => "$backendBaseUrl/admin/login";
@@ -132,9 +160,13 @@ class ApiService {
     return headers;
   }
 
+  static const Duration _requestTimeout = Duration(seconds: 10);
+
   Future<http.Response> _rawGetRequest(String url) async {
     final headers = await _getHeaders();
-    return await http.get(Uri.parse(url), headers: headers);
+    return await http
+        .get(Uri.parse(url), headers: headers)
+        .timeout(_requestTimeout);
   }
 
   Future<dynamic> getRequest(String url) async {
@@ -149,11 +181,9 @@ class ApiService {
   Future<dynamic> postRequest(String url, Map<String, dynamic> body) async {
     try {
       final headers = await _getHeaders();
-      final response = await http.post(
-        Uri.parse(url),
-        headers: headers,
-        body: jsonEncode(body),
-      );
+      final response = await http
+          .post(Uri.parse(url), headers: headers, body: jsonEncode(body))
+          .timeout(_requestTimeout);
       return _processResponse(response);
     } catch (e) {
       throw Exception(_friendlyRequestError(e));
@@ -163,7 +193,9 @@ class ApiService {
   Future<dynamic> postEmptyRequest(String url) async {
     try {
       final headers = await _getHeaders();
-      final response = await http.post(Uri.parse(url), headers: headers);
+      final response = await http
+          .post(Uri.parse(url), headers: headers)
+          .timeout(_requestTimeout);
       return _processResponse(response);
     } catch (e) {
       throw Exception(_friendlyRequestError(e));
@@ -173,11 +205,9 @@ class ApiService {
   Future<dynamic> putRequest(String url, Map<String, dynamic> body) async {
     try {
       final headers = await _getHeaders();
-      final response = await http.put(
-        Uri.parse(url),
-        headers: headers,
-        body: jsonEncode(body),
-      );
+      final response = await http
+          .put(Uri.parse(url), headers: headers, body: jsonEncode(body))
+          .timeout(_requestTimeout);
       return _processResponse(response);
     } catch (e) {
       throw Exception(_friendlyRequestError(e));
@@ -187,7 +217,9 @@ class ApiService {
   Future<dynamic> deleteRequest(String url) async {
     try {
       final headers = await _getHeaders();
-      final response = await http.delete(Uri.parse(url), headers: headers);
+      final response = await http
+          .delete(Uri.parse(url), headers: headers)
+          .timeout(_requestTimeout);
       return _processResponse(response);
     } catch (e) {
       throw Exception(_friendlyRequestError(e));
@@ -478,6 +510,33 @@ class ApiService {
   }
 
   // ==========================================
+  // PRODUCT REVIEWS APIs
+  // ==========================================
+
+  Future<ProductReviewsSummary> getProductReviews(int productId) async {
+    final response = await getRequest(apiProductReviews(productId));
+    if (response is Map<String, dynamic>) {
+      return ProductReviewsSummary.fromJson(response);
+    }
+    throw Exception("Invalid reviews response from server");
+  }
+
+  Future<ReviewModel> submitProductReview(
+    int productId, {
+    required int rating,
+    String comment = '',
+  }) async {
+    final response = await postRequest(apiProductReviews(productId), {
+      "rating": rating,
+      "comment": comment,
+    });
+    if (response is Map<String, dynamic>) {
+      return ReviewModel.fromJson(response);
+    }
+    throw Exception("Invalid review response from server");
+  }
+
+  // ==========================================
   // SHOPPING CART APIs
   // ==========================================
 
@@ -557,18 +616,23 @@ class ApiService {
   // ORDER APIs
   // ==========================================
 
-  Future<List<OrderModel>> getOrders(List<Product> products) async {
-    final response = await getRequest(apiOrders);
+  Future<List<OrderModel>> getOrders(
+    List<Product> products, {
+    String? status,
+  }) async {
+    final url = (status == null || status.isEmpty)
+        ? apiOrders
+        : Uri.parse(apiOrders).replace(queryParameters: {'status': status}).toString();
+    final response = await getRequest(url);
     if (response is List) {
       final List<OrderModel> orders = [];
       for (final oMap in response) {
         final map = oMap as Map<String, dynamic>;
-        final int orderId = map['orderId'] ?? map['id'] ?? 0;
+        // /order/my-orders already inlines orderDetails per order — no need
+        // to fetch each order's detail separately (that was an N+1 fan-out).
         final List<OrderItem> orderItems = [];
-        final detailsResponse = await getRequest("$apiOrderDetail/$orderId");
-        if (detailsResponse is Map &&
-            detailsResponse.containsKey('orderDetails')) {
-          final detailsList = detailsResponse['orderDetails'] as List<dynamic>;
+        final detailsList = map['orderDetails'];
+        if (detailsList is List) {
           for (final detail in detailsList) {
             orderItems.add(OrderItem.fromJson(detail as Map<String, dynamic>));
           }
@@ -610,6 +674,10 @@ class ApiService {
 
   Future<void> cancelOrder(int orderId) async {
     await postEmptyRequest("$apiOrderCancel/$orderId");
+  }
+
+  Future<void> confirmOrderReceived(int orderId) async {
+    await postEmptyRequest("$apiOrderConfirmReceived/$orderId");
   }
 
   Future<List<OrderModel>> getTransactionHistory() async {

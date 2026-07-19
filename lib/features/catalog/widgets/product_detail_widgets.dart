@@ -42,6 +42,103 @@ class ProductHeroImage extends StatelessWidget {
   }
 }
 
+// Product descriptions follow a consistent admin-authored convention:
+// "**Section title**" on its own line, followed by either a paragraph or a
+// "- item" bullet list, with blank lines separating sections. This renders
+// that structure with real visual hierarchy instead of showing raw "**".
+class ProductDescriptionView extends StatelessWidget {
+  const ProductDescriptionView({super.key, required this.description});
+
+  final String description;
+
+  static final RegExp _headingPattern = RegExp(r'^\*\*(.+)\*\*$');
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final lines = description.split('\n');
+
+    final blocks = <Widget>[];
+    List<String>? bulletBuffer;
+
+    void flushBullets() {
+      if (bulletBuffer == null) return;
+      for (final item in bulletBuffer!) {
+        blocks.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 2, right: 8),
+                  child: Icon(
+                    Icons.circle,
+                    size: 5,
+                    color: AppTheme.primaryColor,
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    item,
+                    style: textTheme.bodyMedium?.copyWith(height: 1.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+      bulletBuffer = null;
+    }
+
+    for (final rawLine in lines) {
+      final line = rawLine.trim();
+      if (line.isEmpty) {
+        flushBullets();
+        continue;
+      }
+
+      final headingMatch = _headingPattern.firstMatch(line);
+      if (headingMatch != null) {
+        flushBullets();
+        blocks.add(
+          Padding(
+            padding: EdgeInsets.only(top: blocks.isEmpty ? 0 : 16, bottom: 6),
+            child: Text(
+              headingMatch.group(1)!,
+              style: textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.primaryColor,
+              ),
+            ),
+          ),
+        );
+        continue;
+      }
+
+      if (line.startsWith('- ')) {
+        (bulletBuffer ??= []).add(line.substring(2).trim());
+        continue;
+      }
+
+      flushBullets();
+      blocks.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Text(
+            line,
+            style: textTheme.bodyMedium?.copyWith(height: 1.5),
+          ),
+        ),
+      );
+    }
+    flushBullets();
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: blocks);
+  }
+}
+
 class ProductSpecifications extends StatelessWidget {
   const ProductSpecifications({super.key, required this.product});
 

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:prm393/app/auth_gate.dart';
 import 'package:prm393/features/auth/screens/login_screen.dart';
-import 'package:prm393/features/cart/screens/cart_order_screen.dart';
+import 'package:prm393/features/orders/screens/order_screen.dart';
 import 'package:prm393/features/catalog/screens/product_list_screen.dart';
 import 'package:prm393/features/navigation/screens/main_navigation_screen.dart';
 import 'package:prm393/features/profile/screens/profile_screen.dart';
@@ -25,7 +25,7 @@ class AppRoutes {
     login: (_) => const LoginScreen(),
     main: (_) => const MainNavigation(),
     products: (_) => const ProductListScreen(),
-    cartOrders: (_) => const CartOrderScreen(),
+    cartOrders: (_) => const OrderScreen(),
     profile: (_) => const ProfileScreen(),
     stores: (_) => const MapScreen(),
     support: (_) => const SupportScreen(),

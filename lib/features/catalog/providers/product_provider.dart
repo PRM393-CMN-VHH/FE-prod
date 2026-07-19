@@ -46,8 +46,12 @@ class ProductProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _categories = await _apiService.getCategories();
-      _products = await _apiService.getProducts();
+      final results = await Future.wait([
+        _apiService.getCategories(),
+        _apiService.getProducts(),
+      ]);
+      _categories = results[0] as List<Category>;
+      _products = results[1] as List<Product>;
     } catch (e) {
       _errorMessage = ErrorTranslator.userMessage(e);
     }

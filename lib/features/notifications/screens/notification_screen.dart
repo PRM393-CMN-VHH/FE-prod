@@ -13,59 +13,70 @@ class NotificationScreen extends StatelessWidget {
     final notifProv = Provider.of<NotificationProvider>(context);
     final notifications = notifProv.notifications;
 
-    return Column(
-      children: [
-        // Action Bar for notifications management
-        if (notifications.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () {
-                  notifProv.markAllAsRead();
-                },
-                icon: const Icon(
-                  Icons.done_all,
-                  size: 18,
-                  color: AppTheme.primaryColor,
-                ),
-                label: const Text(
-                  "Mark all as read",
-                  style: TextStyle(
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          "Thông báo",
+          style: TextStyle(
+            fontFamily: 'serif',
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+      body: Column(
+        children: [
+          // Action Bar for notifications management
+          if (notifications.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () {
+                    notifProv.markAllAsRead();
+                  },
+                  icon: const Icon(
+                    Icons.done_all,
+                    size: 18,
                     color: AppTheme.primaryColor,
-                    fontWeight: FontWeight.bold,
+                  ),
+                  label: const Text(
+                    "Đánh dấu tất cả đã đọc",
+                    style: TextStyle(
+                      color: AppTheme.primaryColor,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
 
-        Expanded(
-          child: notifProv.isLoading
-              ? const Center(
-                  child: CircularProgressIndicator(
-                    color: AppTheme.primaryColor,
+          Expanded(
+            child: notifProv.isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: AppTheme.primaryColor,
+                    ),
+                  )
+                : notifications.isEmpty
+                ? const EmptyNotifications()
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    itemCount: notifications.length,
+                    itemBuilder: (context, index) {
+                      final notif = notifications[index];
+                      return NotificationTile(
+                        notification: notif,
+                        onTap: () => notifProv.markAsRead(notif.id),
+                      );
+                    },
                   ),
-                )
-              : notifications.isEmpty
-              ? const EmptyNotifications()
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  itemCount: notifications.length,
-                  itemBuilder: (context, index) {
-                    final notif = notifications[index];
-                    return NotificationTile(
-                      notification: notif,
-                      onTap: () => notifProv.markAsRead(notif.id),
-                    );
-                  },
-                ),
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 }

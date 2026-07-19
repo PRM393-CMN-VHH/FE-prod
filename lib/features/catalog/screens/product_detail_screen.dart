@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:prm393/core/constants/app_messages.dart';
 import 'package:prm393/features/catalog/models/product.dart';
+import 'package:prm393/features/catalog/models/review.dart';
 import 'package:prm393/features/cart/providers/cart_provider.dart';
 import 'package:prm393/features/catalog/providers/product_provider.dart';
 import 'package:prm393/features/catalog/widgets/product_detail_widgets.dart';
+import 'package:prm393/features/catalog/widgets/product_reviews_section.dart';
+import 'package:prm393/core/network/api_service.dart';
 import 'package:prm393/core/theme/app_theme.dart';
 import 'package:prm393/core/utils/currency_formatter.dart';
 import 'package:prm393/core/utils/error_translator.dart';
@@ -18,17 +21,67 @@ class ProductDetailScreen extends StatefulWidget {
 }
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
+  final ApiService _apiService = ApiService();
   int _quantity = 1;
   late Product _product;
   List<Product> _relatedProducts = [];
   bool _isLoadingDetail = true;
   String? _detailError;
+  ProductReviewsSummary? _reviewsSummary;
+  bool _isLoadingReviews = true;
+  String? _reviewsError;
 
   @override
   void initState() {
     super.initState();
     _product = widget.product;
     _loadBackendDetail();
+    _loadReviews();
+  }
+
+  Future<void> _loadReviews() async {
+    try {
+      final summary = await _apiService.getProductReviews(widget.product.id);
+      if (!mounted) return;
+      setState(() {
+        _reviewsSummary = summary;
+        _isLoadingReviews = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _reviewsError = ErrorTranslator.userMessage(e);
+        _isLoadingReviews = false;
+      });
+    }
+  }
+
+  Future<void> _writeReview() async {
+    final result = await showWriteReviewSheet(context);
+    if (result == null) return;
+    try {
+      await _apiService.submitProductReview(
+        widget.product.id,
+        rating: result.rating,
+        comment: result.comment,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Cảm ơn bạn đã đánh giá sản phẩm!"),
+          backgroundColor: AppTheme.primaryColor,
+        ),
+      );
+      await _loadReviews();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ErrorTranslator.userMessage(e)),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
   }
 
   Future<void> _loadBackendDetail() async {
@@ -147,84 +200,54 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     ),
                     const SizedBox(height: 12),
                   ],
-                  // Title and Price row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(product.name, style: textTheme.headlineMedium),
-                            const SizedBox(height: 4),
-                            Text(
-                              product.flowerType,
-                              style: textTheme.bodyLarge?.copyWith(
-                                color: AppTheme.textSecondaryColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            formatVnd(dispPrice),
-                            style: textTheme.headlineMedium?.copyWith(
-                              color: AppTheme.primaryColor,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          if (isPromo) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              formatVnd(product.price),
-                              style: const TextStyle(
-                                decoration: TextDecoration.lineThrough,
-                                color: Colors.grey,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ],
+                  // Product Name
+                  Text(
+                    product.name,
+                    style: textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
+                  const SizedBox(height: 8),
 
-                  const SizedBox(height: 20),
-
-                  // Product Specification Chips
-                  ProductSpecifications(product: product),
-
-                  const SizedBox(height: 24),
-
-                  // Stock check
+                  // Price (Promo price and Original price side by side)
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
                     children: [
-                      Container(
-                        width: 12,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: product.stock > 0 ? Colors.green : Colors.red,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
                       Text(
-                        product.stock > 0
-                            ? "Còn hàng (${product.stock} sản phẩm)"
-                            : "Tạm hết hàng",
-                        style: TextStyle(
-                          color: product.stock > 0
-                              ? Colors.green.shade700
-                              : Colors.red.shade700,
+                        formatVnd(dispPrice),
+                        style: textTheme.headlineMedium?.copyWith(
+                          color: AppTheme.primaryColor,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      if (isPromo) ...[
+                        const SizedBox(width: 12),
+                        Text(
+                          formatVnd(product.price),
+                          style: const TextStyle(
+                            decoration: TextDecoration.lineThrough,
+                            color: Colors.grey,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
                     ],
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Stock check
+                  Text(
+                    product.stock > 0
+                        ? "Còn hàng (${product.stock} sản phẩm)"
+                        : "Tạm hết hàng",
+                    style: TextStyle(
+                      color: product.stock > 0
+                          ? Colors.green.shade700
+                          : Colors.red.shade700,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
 
                   const SizedBox(height: 20),
@@ -233,9 +256,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
                   Text("Thông tin sản phẩm", style: textTheme.titleMedium),
                   const SizedBox(height: 8),
-                  Text(
-                    product.description,
-                    style: textTheme.bodyMedium?.copyWith(height: 1.5),
+                  ProductDescriptionView(description: product.description),
+
+                  const SizedBox(height: 20),
+                  const Divider(),
+                  const SizedBox(height: 16),
+
+                  ProductReviewsSection(
+                    summary: _reviewsSummary,
+                    isLoading: _isLoadingReviews,
+                    errorMessage: _reviewsError,
+                    onWriteReview: _writeReview,
                   ),
 
                   const SizedBox(height: 24),

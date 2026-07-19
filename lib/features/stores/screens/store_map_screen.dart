@@ -26,7 +26,21 @@ class _MapScreenState extends State<MapScreen> {
   void initState() {
     super.initState();
     _mapController = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted);
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setUserAgent(
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      )
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageFinished: (url) {
+            _mapController.runJavaScript('''
+              var style = document.createElement('style');
+              style.innerHTML = '.banner, .app-promo, .smart-banner, .open-in-maps, .open-in-maps-banner { display: none !important; }';
+              document.head.appendChild(style);
+            ''');
+          },
+        ),
+      );
     _loadLocations();
   }
 

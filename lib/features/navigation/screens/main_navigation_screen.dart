@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:prm393/core/constants/app_messages.dart';
 import 'package:prm393/features/auth/providers/auth_provider.dart';
 import 'package:prm393/features/cart/providers/cart_provider.dart';
 import 'package:prm393/features/notifications/providers/notification_provider.dart';
@@ -9,10 +8,12 @@ import 'package:prm393/features/chat/providers/chat_provider.dart';
 import 'package:prm393/features/admin/providers/admin_chat_provider.dart';
 import 'package:prm393/features/admin/screens/admin_screen.dart';
 import 'package:prm393/features/catalog/screens/product_list_screen.dart';
-import 'package:prm393/features/cart/screens/cart_order_screen.dart';
+import 'package:prm393/features/orders/screens/order_screen.dart';
+import 'package:prm393/features/cart/screens/cart_screen.dart';
 import 'package:prm393/features/profile/screens/profile_screen.dart';
 import 'package:prm393/features/stores/screens/store_map_screen.dart';
 import 'package:prm393/features/support/screens/support_screen.dart';
+import 'package:prm393/features/notifications/screens/notification_screen.dart';
 import 'package:prm393/core/constants/app_strings.dart';
 import 'package:prm393/core/theme/app_theme.dart';
 
@@ -25,6 +26,11 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
+  // Tabs load their own data in initState, so IndexedStack must only build a
+  // tab's real screen once it's actually been visited — otherwise every tab
+  // (orders, store map, ...) fires its API calls immediately on app start
+  // just because IndexedStack keeps all children mounted.
+  final Set<int> _visitedTabIndices = {0};
 
   @override
   void initState() {
@@ -65,7 +71,7 @@ class _MainNavigationState extends State<MainNavigation> {
     final isAdmin = authProvider.user?.isAdmin ?? false;
     final screens = <Widget>[
       if (!isAdmin) const ProductListScreen(),
-      if (!isAdmin) const CartOrderScreen(),
+      if (!isAdmin) const OrderScreen(),
       if (isAdmin) const AdminScreen(),
       const ProfileScreen(),
       const MapScreen(),
@@ -100,45 +106,59 @@ class _MainNavigationState extends State<MainNavigation> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_outlined),
-            onPressed: () {
-              // Confirm logout
-              showDialog(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: Text(AppMessage.logoutTitle.text),
-                  content: Text(AppMessage.logoutConfirmMessage.text),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: Text(AppMessage.cancelAction.text),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        authProvider.signOut();
-                      },
-                      child: Text(
-                        AppMessage.logoutTitle.text,
-                        style: const TextStyle(color: Colors.redAccent),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
+          if (!isAdmin) ...[
+            IconButton(
+              icon: Badge(
+                label: Text(notificationProvider.unreadCount.toString()),
+                isLabelVisible: notificationProvider.unreadCount > 0,
+                child: const Icon(Icons.notifications_outlined),
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const NotificationScreen(),
+                  ),
+                );
+              },
+            ),
+            IconButton(
+              icon: Badge(
+                label: Text(cartProvider.totalItemCount.toString()),
+                isLabelVisible: cartProvider.totalItemCount > 0,
+                child: const Icon(Icons.shopping_cart_outlined),
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CartScreen(),
+                  ),
+                );
+              },
+            ),
+          ],
         ],
       ),
-      body: IndexedStack(index: _currentIndex, children: screens),
+      body: IndexedStack(
+        index: _currentIndex,
+        children: [
+          for (var i = 0; i < screens.length; i++)
+            _visitedTabIndices.contains(i) ? screens[i] : const SizedBox.shrink(),
+        ],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: _currentIndex,
         onTap: (index) {
           setState(() {
             _currentIndex = index;
+            _visitedTabIndices.add(index);
           });
+          // Mark chat messages as read when navigating to SupportScreen (index 4 for non-admin)
+          if (!isAdmin && index == 4) {
+            Provider.of<ChatProvider>(context, listen: false).markAsRead();
+          }
         },
         items: [
           if (!isAdmin)
@@ -148,18 +168,10 @@ class _MainNavigationState extends State<MainNavigation> {
               label: "Trang chủ",
             ),
           if (!isAdmin)
-            BottomNavigationBarItem(
-              icon: Badge(
-                label: Text(cartProvider.totalItemCount.toString()),
-                isLabelVisible: cartProvider.totalItemCount > 0,
-                child: const Icon(Icons.shopping_cart_outlined),
-              ),
-              activeIcon: Badge(
-                label: Text(cartProvider.totalItemCount.toString()),
-                isLabelVisible: cartProvider.totalItemCount > 0,
-                child: const Icon(Icons.shopping_cart),
-              ),
-              label: "Giỏ/Đơn",
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.receipt_long_outlined),
+              activeIcon: Icon(Icons.receipt_long),
+              label: "Đơn hàng",
             ),
           if (isAdmin)
             BottomNavigationBarItem(
@@ -188,26 +200,16 @@ class _MainNavigationState extends State<MainNavigation> {
           if (!isAdmin)
             BottomNavigationBarItem(
               icon: Badge(
-                label: Text(
-                  (notificationProvider.unreadCount + chatProvider.unreadCount)
-                      .toString(),
-                ),
-                isLabelVisible:
-                    notificationProvider.unreadCount + chatProvider.unreadCount >
-                    0,
+                label: Text(chatProvider.unreadCount.toString()),
+                isLabelVisible: chatProvider.unreadCount > 0,
                 child: const Icon(Icons.chat_bubble_outline),
               ),
               activeIcon: Badge(
-                label: Text(
-                  (notificationProvider.unreadCount + chatProvider.unreadCount)
-                      .toString(),
-                ),
-                isLabelVisible:
-                    notificationProvider.unreadCount + chatProvider.unreadCount >
-                    0,
+                label: Text(chatProvider.unreadCount.toString()),
+                isLabelVisible: chatProvider.unreadCount > 0,
                 child: const Icon(Icons.chat_bubble),
               ),
-              label: "Chat/Tin",
+              label: "Hỗ trợ",
             ),
         ],
       ),

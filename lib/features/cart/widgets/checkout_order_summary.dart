@@ -61,6 +61,38 @@ class CheckoutOrderSummary extends StatelessWidget {
                   );
                 }),
                 const Divider(height: 24),
+                if (cartProvider.amountToFreeShipping > 0) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.local_shipping_outlined,
+                          size: 16,
+                          color: AppTheme.primaryColor,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Mua thêm ${formatVnd(cartProvider.amountToFreeShipping)} để được miễn phí giao hàng',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 _SummaryRow(
                   label: "Tạm tính",
                   value: formatVnd(cartProvider.subtotalAmount),

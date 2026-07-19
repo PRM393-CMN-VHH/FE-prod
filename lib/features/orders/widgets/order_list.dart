@@ -3,6 +3,7 @@ import 'package:prm393/core/theme/app_theme.dart';
 import 'package:prm393/core/utils/currency_formatter.dart';
 import 'package:prm393/features/orders/models/order.dart';
 import 'package:prm393/features/orders/screens/order_detail_screen.dart';
+import 'package:prm393/core/utils/status_translator.dart';
 
 class OrderList extends StatelessWidget {
   final List<OrderModel> orders;
@@ -11,6 +12,7 @@ class OrderList extends StatelessWidget {
   final Future<void> Function() onRefresh;
   final Future<void> Function(OrderModel order)? onCancel;
   final Future<void> Function(OrderModel order)? onRepay;
+  final Future<void> Function(OrderModel order)? onConfirmReceived;
 
   const OrderList({
     super.key,
@@ -20,6 +22,7 @@ class OrderList extends StatelessWidget {
     required this.onRefresh,
     this.onCancel,
     this.onRepay,
+    this.onConfirmReceived,
   });
 
   @override
@@ -66,12 +69,18 @@ class OrderList extends StatelessWidget {
         separatorBuilder: (_, _) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final order = orders[index];
+          const finalStatuses = ['cancelled', 'delivered', 'completed'];
           final canCancel =
               onCancel != null &&
               order.paymentStatus.toLowerCase() != 'paid' &&
-              order.status.toLowerCase() != 'cancelled';
+              !finalStatuses.contains(order.status.toLowerCase());
           final canRepay =
-              onRepay != null && order.paymentStatus.toLowerCase() != 'paid';
+              onRepay != null &&
+              order.paymentStatus.toLowerCase() != 'paid' &&
+              !finalStatuses.contains(order.status.toLowerCase());
+          final canConfirmReceived =
+              onConfirmReceived != null &&
+              order.status.toLowerCase() == 'delivered';
 
           return Card(
             elevation: 0,
@@ -102,7 +111,7 @@ class OrderList extends StatelessWidget {
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                         Text(
-                          order.status,
+                          StatusTranslator.orderStatus(order.status),
                           style: const TextStyle(
                             color: AppTheme.primaryColor,
                             fontWeight: FontWeight.bold,
@@ -112,7 +121,7 @@ class OrderList extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      "Thanh toán: ${order.paymentMethod} ${order.paymentStatus.isEmpty ? '' : '(${order.paymentStatus})'}",
+                      "Thanh toán: ${order.paymentMethod} ${order.paymentStatus.isEmpty ? '' : '(${StatusTranslator.paymentStatus(order.paymentStatus)})'}",
                     ),
                     const SizedBox(height: 4),
                     Text("Tổng tiền: ${formatVnd(order.totalAmount)}"),
@@ -129,16 +138,22 @@ class OrderList extends StatelessWidget {
                             ),
                           ),
                     ],
-                    if (canCancel || canRepay) ...[
+                    if (canCancel || canRepay || canConfirmReceived) ...[
                       const SizedBox(height: 12),
                       Row(
                         children: [
+                          if (canConfirmReceived)
+                            ElevatedButton(
+                              onPressed: () => onConfirmReceived!(order),
+                              child: const Text("Đã nhận hàng"),
+                            ),
                           if (canRepay)
                             OutlinedButton(
                               onPressed: () => onRepay!(order),
                               child: const Text("Thanh toán"),
                             ),
-                          if (canRepay && canCancel) const SizedBox(width: 8),
+                          if ((canRepay || canConfirmReceived) && canCancel)
+                            const SizedBox(width: 8),
                           if (canCancel)
                             TextButton(
                               onPressed: () => onCancel!(order),

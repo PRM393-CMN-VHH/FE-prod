@@ -4,6 +4,7 @@ import 'package:prm393/core/network/api_service.dart';
 import 'package:prm393/core/theme/app_theme.dart';
 import 'package:prm393/core/utils/currency_formatter.dart';
 import 'package:prm393/core/utils/error_translator.dart';
+import 'package:prm393/core/utils/status_translator.dart';
 import 'package:prm393/features/orders/widgets/order_info_tile.dart';
 
 class OrderDetailScreen extends StatefulWidget {
@@ -34,7 +35,15 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Đơn #${widget.orderId}")),
+      appBar: AppBar(
+        title: const Text(
+          "Thông tin đơn hàng",
+          style: TextStyle(
+            fontFamily: 'serif',
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
       body: FutureBuilder<OrderModel>(
         future: _future,
         builder: (context, snapshot) {
@@ -57,17 +66,21 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           }
 
           final order = snapshot.data!;
+          final originalSubtotal = order.items.fold(0.0, (sum, item) => sum + (item.product.price * item.quantity));
+          final actualSubtotal = order.items.fold(0.0, (sum, item) => sum + (item.price * item.quantity));
+          final totalDiscount = originalSubtotal - actualSubtotal;
+          final shippingFee = order.totalAmount - actualSubtotal;
           return RefreshIndicator(
             onRefresh: _refresh,
             color: AppTheme.primaryColor,
             child: ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               children: [
-                OrderInfoTile(label: "Trạng thái đơn", value: order.status),
+                OrderInfoTile(label: "Trạng thái đơn", value: StatusTranslator.orderStatus(order.status)),
                 OrderInfoTile(
                   label: "Thanh toán",
                   value:
-                      "${order.paymentMethod}${order.paymentStatus.isEmpty ? '' : ' (${order.paymentStatus})'}",
+                      "${order.paymentMethod}${order.paymentStatus.isEmpty ? '' : ' (${StatusTranslator.paymentStatus(order.paymentStatus)})'}",
                 ),
                 OrderInfoTile(label: "Người nhận", value: order.recipientName),
                 OrderInfoTile(
@@ -93,33 +106,93 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   )
                 else
                   ...order.items.map(
-                    (item) => Card(
-                      elevation: 0,
-                      child: ListTile(
-                        leading: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            item.product.imageUrl,
-                            width: 52,
-                            height: 52,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) =>
-                                const Icon(Icons.local_florist),
-                          ),
+                    (item) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          item.product.imageUrl,
+                          width: 52,
+                          height: 52,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) =>
+                              const Icon(Icons.local_florist),
                         ),
-                        title: Text(item.product.name),
-                        subtitle: Text("Số lượng: ${item.quantity}"),
-                        trailing: Text(formatVnd(item.price * item.quantity)),
+                      ),
+                      title: Text(item.product.name),
+                      subtitle: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Số lượng: ${item.quantity}",
+                            style: const TextStyle(color: AppTheme.textPrimaryColor),
+                          ),
+                          Text(
+                            formatVnd(item.price * item.quantity),
+                            style: const TextStyle(color: AppTheme.textPrimaryColor),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 const Divider(height: 32),
+                if (order.items.isNotEmpty) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Tạm tính",
+                        style: TextStyle(color: AppTheme.textSecondaryColor),
+                      ),
+                      Text(
+                        formatVnd(originalSubtotal),
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Giảm giá",
+                        style: TextStyle(color: AppTheme.textSecondaryColor),
+                      ),
+                      Text(
+                        totalDiscount > 0 ? "-${formatVnd(totalDiscount)}" : "0đ",
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Phí giao hàng",
+                        style: TextStyle(color: AppTheme.textSecondaryColor),
+                      ),
+                      Text(
+                        shippingFee > 0 ? formatVnd(shippingFee) : "Miễn phí",
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 24),
+                ],
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
                       "Tổng cộng",
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
                     Text(
                       formatVnd(order.totalAmount),

@@ -159,6 +159,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 24),
+          OutlinedButton.icon(
+            onPressed: () {
+              // Confirm logout
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: Text(AppMessage.logoutTitle.text),
+                  content: Text(AppMessage.logoutConfirmMessage.text),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: Text(AppMessage.cancelAction.text),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        authProvider.signOut();
+                      },
+                      child: Text(
+                        AppMessage.logoutTitle.text,
+                        style: const TextStyle(color: Colors.redAccent),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.redAccent,
+              side: const BorderSide(color: Colors.redAccent),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            icon: const Icon(Icons.logout_outlined),
+            label: Text(AppMessage.logoutTitle.text),
+          ),
         ],
       ),
     );

@@ -49,6 +49,7 @@ class OrderItem {
 class OrderModel {
   final int id;
   final double totalAmount;
+  final double shippingFee;
   final String recipientName;
   final String recipientPhone;
   final String shippingAddress;
@@ -62,6 +63,7 @@ class OrderModel {
   OrderModel({
     required this.id,
     required this.totalAmount,
+    this.shippingFee = 0,
     required this.recipientName,
     required this.recipientPhone,
     required this.shippingAddress,
@@ -80,6 +82,9 @@ class OrderModel {
     final int orderId = json['orderId'] ?? json['id'] ?? 0;
     final double amt =
         (json['totalPrice'] as num? ?? json['total_amount'] as num? ?? 0)
+            .toDouble();
+    final double shipFee =
+        (json['shippingFee'] as num? ?? json['shipping_fee'] as num? ?? 0)
             .toDouble();
 
     // Fallback recipient from user object
@@ -113,6 +118,7 @@ class OrderModel {
     return OrderModel(
       id: orderId,
       totalAmount: amt,
+      shippingFee: shipFee,
       recipientName: name,
       recipientPhone: phone,
       shippingAddress: addr,

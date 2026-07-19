@@ -8,12 +8,14 @@ class CartSummary extends StatelessWidget {
     required this.subtotal,
     required this.shippingFee,
     required this.total,
+    required this.amountToFreeShipping,
     required this.onCheckout,
   });
 
   final double subtotal;
   final double shippingFee;
   final double total;
+  final double amountToFreeShipping;
   final VoidCallback onCheckout;
 
   @override
@@ -38,6 +40,38 @@ class CartSummary extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (amountToFreeShipping > 0) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.local_shipping_outlined,
+                      size: 16,
+                      color: AppTheme.primaryColor,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Mua thêm ${formatVnd(amountToFreeShipping)} để được miễn phí giao hàng',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.primaryColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             _SummaryRow(
               label: 'Tạm tính',
               value: formatVnd(subtotal),

@@ -9,6 +9,8 @@ class StatusTranslator {
         return 'Đang giao';
       case 'DELIVERED':
         return 'Đã giao';
+      case 'COMPLETED':
+        return 'Đã nhận hàng';
       case 'CANCELLED':
         return 'Đã hủy';
       default:
@@ -25,6 +27,10 @@ class StatusTranslator {
         return 'Chưa thanh toán';
       case 'PENDING':
         return 'Chờ thanh toán';
+      case 'FAILED':
+        return 'Thất bại';
+      case 'CANCELLED':
+        return 'Đã hủy';
       default:
         if (status.isEmpty) return status;
         return status[0].toUpperCase() + status.substring(1).toLowerCase();
