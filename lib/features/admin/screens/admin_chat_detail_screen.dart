@@ -22,6 +22,8 @@ class AdminChatDetailScreen extends StatefulWidget {
 class _AdminChatDetailScreenState extends State<AdminChatDetailScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
+  AdminChatProvider? _adminChatProvider;
+  int _lastMessageCount = 0;
 
   @override
   void initState() {
@@ -34,10 +36,47 @@ class _AdminChatDetailScreenState extends State<AdminChatDetailScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final chatProv = Provider.of<AdminChatProvider>(context, listen: false);
+    if (_adminChatProvider != chatProv) {
+      _adminChatProvider?.removeListener(_onChatChanged);
+      _adminChatProvider = chatProv;
+      _adminChatProvider?.addListener(_onChatChanged);
+      _lastMessageCount = _adminChatProvider?.messagesFor(widget.conversationId).length ?? 0;
+    }
+  }
+
+  @override
   void dispose() {
+    _adminChatProvider?.removeListener(_onChatChanged);
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onChatChanged() {
+    if (!mounted) return;
+    final messages = _adminChatProvider?.messagesFor(widget.conversationId) ?? [];
+    if (messages.length > _lastMessageCount) {
+      final isNewMessageFromMe = messages.isNotEmpty && messages.last.isFromAdmin;
+
+      bool isAtBottom = true;
+      if (_scrollController.hasClients) {
+        final position = _scrollController.position;
+        isAtBottom = (position.maxScrollExtent - position.pixels) <= 100;
+      }
+
+      _lastMessageCount = messages.length;
+
+      if (isNewMessageFromMe || isAtBottom) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToBottom();
+        });
+      }
+    } else {
+      _lastMessageCount = messages.length;
+    }
   }
 
   void _scrollToBottom() {
@@ -57,7 +96,6 @@ class _AdminChatDetailScreenState extends State<AdminChatDetailScreen> {
     final chatProv = Provider.of<AdminChatProvider>(context, listen: false);
     _messageController.clear();
     await chatProv.sendMessage(widget.conversationId, text);
-    Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
   }
 
   @override

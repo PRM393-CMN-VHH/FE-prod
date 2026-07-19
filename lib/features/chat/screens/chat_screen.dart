@@ -15,12 +15,51 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
+  ChatProvider? _chatProvider;
+  int _lastMessageCount = 0;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final chatProv = Provider.of<ChatProvider>(context, listen: false);
+    if (_chatProvider != chatProv) {
+      _chatProvider?.removeListener(_onChatChanged);
+      _chatProvider = chatProv;
+      _chatProvider?.addListener(_onChatChanged);
+      _lastMessageCount = _chatProvider?.messages.length ?? 0;
+    }
+  }
 
   @override
   void dispose() {
+    _chatProvider?.removeListener(_onChatChanged);
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onChatChanged() {
+    if (!mounted) return;
+    final messages = _chatProvider?.messages ?? [];
+    if (messages.length > _lastMessageCount) {
+      final isNewMessageFromMe = messages.isNotEmpty && !messages.last.isFromAdmin;
+
+      bool isAtBottom = true;
+      if (_scrollController.hasClients) {
+        final position = _scrollController.position;
+        isAtBottom = (position.maxScrollExtent - position.pixels) <= 100;
+      }
+
+      _lastMessageCount = messages.length;
+
+      if (isNewMessageFromMe || isAtBottom) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToBottom();
+        });
+      }
+    } else {
+      _lastMessageCount = messages.length;
+    }
   }
 
   void _scrollToBottom() {
@@ -41,7 +80,6 @@ class _ChatScreenState extends State<ChatScreen> {
     _messageController.clear();
 
     await chatProv.sendMessage(text);
-    Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
   }
 
   @override
