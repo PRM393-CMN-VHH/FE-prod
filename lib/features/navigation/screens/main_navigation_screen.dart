@@ -192,6 +192,7 @@ class _MainNavigationState extends State<MainNavigation> {
                     },
                   ),
                 ],
+                const SizedBox(width: 8),
               ],
             ),
       body: IndexedStack(

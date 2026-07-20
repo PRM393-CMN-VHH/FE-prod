@@ -181,7 +181,15 @@ class _AdminOrderListState extends State<AdminOrderList>
         paymentStatus: widget.status == "PENDING" ? _paymentStatusFilter : null,
         pageNo: _page,
       );
-      final fetched = data['orders'] as List? ?? [];
+      final fetched = List<dynamic>.from(data['orders'] as List? ?? []);
+      // Backend doesn't accept a sort param, so this only orders items
+      // within the current page — not guaranteed correct across pages.
+      fetched.sort((a, b) {
+        final aDate = DateTime.tryParse((a as Map)['createdAt']?.toString() ?? '');
+        final bDate = DateTime.tryParse((b as Map)['createdAt']?.toString() ?? '');
+        if (aDate == null || bDate == null) return 0;
+        return bDate.compareTo(aDate);
+      });
       if (mounted) {
         setState(() {
           _orders = fetched;

@@ -16,6 +16,7 @@ class CartProvider extends ChangeNotifier {
   List<CartItem> _items = [];
   bool _isLoading = false;
   String? _errorMessage;
+  final Map<int, int> _optimisticQuantities = {};
 
   List<CartItem> get items => _items;
   bool get isLoading => _isLoading;
@@ -76,36 +77,71 @@ class CartProvider extends ChangeNotifier {
   }
 
   Future<bool> updateQuantity(int cartItemId, int newQuantity) async {
-    _isLoading = true;
     _errorMessage = null;
+
+    final index = _items.indexWhere((item) => item.id == cartItemId);
+    if (index == -1) return false;
+
+    final item = _items[index];
+    final oldQuantity = item.quantity;
+
+    // Optimistic update: change local quantity and notify immediately
+    item.quantity = newQuantity;
+    _optimisticQuantities[cartItemId] = newQuantity;
     notifyListeners();
+
     try {
       await _apiService.updateCart(cartItemId, newQuantity);
-      _items = await _apiService.getCartItems([]);
-      _isLoading = false;
+      
+      // Fetch fresh items from the API to stay synchronized
+      final freshItems = await _apiService.getCartItems([]);
+
+      // Clear the tracking if no newer update has occurred for this item
+      if (_optimisticQuantities[cartItemId] == newQuantity) {
+        _optimisticQuantities.remove(cartItemId);
+      }
+
+      // Re-apply any other active optimistic quantities to the fresh list
+      for (final fresh in freshItems) {
+        if (_optimisticQuantities.containsKey(fresh.id)) {
+          fresh.quantity = _optimisticQuantities[fresh.id]!;
+        }
+      }
+
+      _items = freshItems;
       notifyListeners();
       return true;
     } catch (e) {
+      _optimisticQuantities.remove(cartItemId);
+      // Rollback on failure
+      item.quantity = oldQuantity;
       _errorMessage = ErrorTranslator.userMessage(e);
-      _isLoading = false;
       notifyListeners();
       return false;
     }
   }
 
   Future<bool> removeFromCart(int cartItemId) async {
-    _isLoading = true;
     _errorMessage = null;
+
+    final index = _items.indexWhere((item) => item.id == cartItemId);
+    if (index == -1) return false;
+
+    final removedItem = _items[index];
+
+    // Optimistic remove: remove locally and notify immediately
+    _items.removeAt(index);
     notifyListeners();
+
     try {
       await _apiService.removeFromCart(cartItemId);
       _items = await _apiService.getCartItems([]);
-      _isLoading = false;
       notifyListeners();
       return true;
     } catch (e) {
+      // Rollback on failure
+      _items.insert(index, removedItem);
       _errorMessage = ErrorTranslator.userMessage(e);
-      _isLoading = false;
       notifyListeners();
       return false;
     }

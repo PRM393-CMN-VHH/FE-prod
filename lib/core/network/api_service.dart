@@ -641,7 +641,8 @@ class ApiService {
         }
         orders.add(OrderModel.fromJson(map, orderItems));
       }
-      return orders.reversed.toList();
+      orders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return orders;
     }
     throw Exception("Invalid orders response from server");
   }
