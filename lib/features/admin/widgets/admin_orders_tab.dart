@@ -75,9 +75,7 @@ class _AdminOrdersTabState extends State<AdminOrdersTab>
           tabs: [
             const Tab(text: "Tất cả"),
             for (final status in _orderStatuses)
-              Tab(
-                text: StatusTranslator.orderStatus(status),
-              ),
+              Tab(text: StatusTranslator.orderStatus(status)),
           ],
         ),
         Expanded(
@@ -125,10 +123,8 @@ class AdminOrderList extends StatefulWidget {
 
 class _AdminOrderListState extends State<AdminOrderList>
     with AutomaticKeepAliveClientMixin {
-  final ScrollController _scrollController = ScrollController();
   List<dynamic> _orders = [];
-  bool _isInitialLoading = true;
-  bool _isLoadingMore = false;
+  bool _isLoading = true;
   String? _errorMessage;
   int _page = 1;
   int _totalPage = 1;
@@ -139,50 +135,37 @@ class _AdminOrderListState extends State<AdminOrderList>
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_onScroll);
     widget.refreshNotifier.addListener(_handleExternalRefresh);
-    _initialLoad();
+    _load();
   }
 
   @override
   void didUpdateWidget(AdminOrderList oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.searchEmail != widget.searchEmail) {
-      _initialLoad();
+      _page = 1;
+      _load();
     }
   }
 
   @override
   void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
     widget.refreshNotifier.removeListener(_handleExternalRefresh);
     super.dispose();
   }
 
-  void _onScroll() {
-    if (!_scrollController.hasClients) return;
-    final maxScroll = _scrollController.position.maxScrollExtent;
-    final currentScroll = _scrollController.position.pixels;
-    // Trigger load more when the user scrolls near the bottom (200px threshold)
-    if (maxScroll - currentScroll <= 200) {
-      _loadMore();
-    }
-  }
-
   void _handleExternalRefresh() {
-    _initialLoad();
+    _page = 1;
+    _load();
   }
 
-  Future<void> _initialLoad() async {
+  Future<void> _load() async {
     if (!mounted) return;
-    
-    _page = 1;
-    _errorMessage = null;
 
-    if (!_isInitialLoading) {
+    _errorMessage = null;
+    if (!_isLoading) {
       setState(() {
-        _isInitialLoading = true;
+        _isLoading = true;
       });
     }
 
@@ -190,7 +173,7 @@ class _AdminOrderListState extends State<AdminOrderList>
       final data = await ApiService().getAdminOrders(
         email: widget.searchEmail,
         status: widget.status,
-        pageNo: 1,
+        pageNo: _page,
       );
       final fetched = data['orders'] as List? ?? [];
       if (mounted) {
@@ -208,39 +191,16 @@ class _AdminOrderListState extends State<AdminOrderList>
     } finally {
       if (mounted) {
         setState(() {
-          _isInitialLoading = false;
+          _isLoading = false;
         });
       }
     }
   }
 
-  Future<void> _loadMore() async {
-    if (_isInitialLoading || _isLoadingMore || _page >= _totalPage) return;
-    setState(() {
-      _isLoadingMore = true;
-    });
-    try {
-      final nextPage = _page + 1;
-      final data = await ApiService().getAdminOrders(
-        email: widget.searchEmail,
-        status: widget.status,
-        pageNo: nextPage,
-      );
-      final newOrders = data['orders'] as List? ?? [];
-      setState(() {
-        _page = nextPage;
-        _orders.addAll(newOrders);
-        _totalPage = (data['totalPage'] as num?)?.toInt() ?? 1;
-      });
-    } catch (e) {
-      if (mounted) showAdminError(context, e);
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoadingMore = false;
-        });
-      }
-    }
+  void _goToPage(int page) {
+    if (page == _page) return;
+    _page = page;
+    _load();
   }
 
   Future<void> _changeStatus(int orderId, String currentStatus) async {
@@ -335,7 +295,7 @@ class _AdminOrderListState extends State<AdminOrderList>
   Widget build(BuildContext context) {
     super.build(context);
 
-    if (_isInitialLoading) {
+    if (_isLoading) {
       return const AdminLoading();
     }
     if (_errorMessage != null && _orders.isEmpty) {
@@ -348,135 +308,131 @@ class _AdminOrderListState extends State<AdminOrderList>
       );
     }
 
-    return ListView.separated(
-      controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      itemCount: _orders.length + (_isLoadingMore ? 1 : 0),
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        if (index == _orders.length) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Center(
-              child: CircularProgressIndicator(
-                color: AppTheme.primaryColor,
-              ),
-            ),
-          );
-        }
+    return Column(
+      children: [
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            itemCount: _orders.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final order = Map<String, dynamic>.from(_orders[index] as Map);
+              final orderId = order['orderId'] ?? order['id'] ?? 0;
+              final currentStatus =
+                  (order['orderStatus'] ?? order['status'] ?? '').toString();
+              final paymentStatus = (order['paymentStatus'] ?? '').toString();
+              final user = order['user'] is Map
+                  ? Map<String, dynamic>.from(order['user'] as Map)
+                  : <String, dynamic>{};
+              final totalPrice = (order['totalPrice'] as num? ?? 0).toDouble();
+              final createdAt = order['createdAt']?.toString();
 
-        final order = Map<String, dynamic>.from(
-          _orders[index] as Map,
-        );
-        final orderId = order['orderId'] ?? order['id'] ?? 0;
-        final currentStatus =
-            (order['orderStatus'] ?? order['status'] ?? '').toString();
-        final paymentStatus = (order['paymentStatus'] ?? '').toString();
-        final user = order['user'] is Map
-            ? Map<String, dynamic>.from(order['user'] as Map)
-            : <String, dynamic>{};
-        final totalPrice = (order['totalPrice'] as num? ?? 0).toDouble();
-        final createdAt = order['createdAt']?.toString();
-
-        return AdminCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      "Đơn #$orderId",
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                  AdminStatusChip(
-                    label: StatusTranslator.orderStatus(currentStatus),
-                    color: adminStatusColor(currentStatus),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.mail_outline,
-                    size: 16,
-                    color: AppTheme.textSecondaryColor,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      user['email']?.toString() ?? 'Không có email',
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondaryColor,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              if (createdAt != null) ...[
-                const SizedBox(height: 4),
-                Row(
+              return AdminCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
-                      Icons.schedule_outlined,
-                      size: 16,
-                      color: AppTheme.textSecondaryColor,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            "Đơn #$orderId",
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                        AdminStatusChip(
+                          label: StatusTranslator.orderStatus(currentStatus),
+                          color: adminStatusColor(currentStatus),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _formatDate(createdAt),
-                      style: const TextStyle(
-                        color: AppTheme.textSecondaryColor,
-                        fontSize: 12,
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.mail_outline,
+                          size: 16,
+                          color: AppTheme.textSecondaryColor,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            user['email']?.toString() ?? 'Không có email',
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppTheme.textSecondaryColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (createdAt != null) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.schedule_outlined,
+                            size: 16,
+                            color: AppTheme.textSecondaryColor,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _formatDate(createdAt),
+                            style: const TextStyle(
+                              color: AppTheme.textSecondaryColor,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          formatVnd(totalPrice),
+                          style: const TextStyle(
+                            color: AppTheme.primaryColor,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        if (paymentStatus.isNotEmpty)
+                          AdminStatusChip(
+                            label: StatusTranslator.paymentStatus(
+                              paymentStatus,
+                            ),
+                            color: adminStatusColor(paymentStatus),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: OutlinedButton.icon(
+                        onPressed: () =>
+                            _changeStatus(orderId as int, currentStatus),
+                        icon: const Icon(Icons.sync_alt, size: 16),
+                        label: const Text("Đổi trạng thái"),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.primaryColor,
+                          side: const BorderSide(color: AppTheme.primaryColor),
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ],
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    formatVnd(totalPrice),
-                    style: const TextStyle(
-                      color: AppTheme.primaryColor,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  if (paymentStatus.isNotEmpty)
-                    AdminStatusChip(
-                      label: StatusTranslator.paymentStatus(paymentStatus),
-                      color: adminStatusColor(paymentStatus),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerRight,
-                child: OutlinedButton.icon(
-                  onPressed: () => _changeStatus(
-                    orderId as int,
-                    currentStatus,
-                  ),
-                  icon: const Icon(Icons.sync_alt, size: 16),
-                  label: const Text("Đổi trạng thái"),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.primaryColor,
-                    side: const BorderSide(
-                      color: AppTheme.primaryColor,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+              );
+            },
           ),
-        );
-      },
+        ),
+        AdminPageControl(
+          page: _page,
+          hasMore: _page < _totalPage,
+          onPrevious: () => _goToPage(_page - 1),
+          onNext: () => _goToPage(_page + 1),
+        ),
+      ],
     );
   }
 }

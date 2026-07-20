@@ -528,8 +528,11 @@ class AdminPageControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (page == 1 && !hasMore) {
+      return const SizedBox.shrink();
+    }
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
