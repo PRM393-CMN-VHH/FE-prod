@@ -128,6 +128,10 @@ class _AdminOrderListState extends State<AdminOrderList>
   String? _errorMessage;
   int _page = 1;
   int _totalPage = 1;
+  // Payment-status sub-filter, only shown for the "Chờ xử lý" (PENDING) tab —
+  // that's where knowing whether a pending order has already been paid
+  // (e.g. via VNPay) matters most to the admin.
+  String? _paymentStatusFilter;
 
   @override
   bool get wantKeepAlive => true;
@@ -173,6 +177,7 @@ class _AdminOrderListState extends State<AdminOrderList>
       final data = await ApiService().getAdminOrders(
         email: widget.searchEmail,
         status: widget.status,
+        paymentStatus: widget.status == "PENDING" ? _paymentStatusFilter : null,
         pageNo: _page,
       );
       final fetched = data['orders'] as List? ?? [];
@@ -200,6 +205,13 @@ class _AdminOrderListState extends State<AdminOrderList>
   void _goToPage(int page) {
     if (page == _page) return;
     _page = page;
+    _load();
+  }
+
+  void _setPaymentStatusFilter(String? paymentStatus) {
+    if (paymentStatus == _paymentStatusFilter) return;
+    _paymentStatusFilter = paymentStatus;
+    _page = 1;
     _load();
   }
 
@@ -291,25 +303,88 @@ class _AdminOrderListState extends State<AdminOrderList>
     return "$d/$m/${parsed.year} ${parsed.hour.toString().padLeft(2, '0')}:${parsed.minute.toString().padLeft(2, '0')}";
   }
 
+  Widget _buildPaymentStatusFilter() {
+    const options = <String?, String>{
+      null: "Tất cả",
+      "UNPAID": "Chưa thanh toán",
+      "PAID": "Đã thanh toán",
+    };
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: SizedBox(
+        height: 36,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: options.length,
+          separatorBuilder: (_, _) => const SizedBox(width: 8),
+          itemBuilder: (context, index) {
+            final paymentStatus = options.keys.elementAt(index);
+            final label = options[paymentStatus]!;
+            final isSelected = paymentStatus == _paymentStatusFilter;
+            return ChoiceChip(
+              label: Text(label),
+              selected: isSelected,
+              onSelected: (_) => _setPaymentStatusFilter(paymentStatus),
+              selectedColor: AppTheme.primaryColor,
+              showCheckmark: false,
+              labelStyle: TextStyle(
+                color: isSelected ? Colors.white : AppTheme.textPrimaryColor,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+              backgroundColor: Colors.white,
+              side: BorderSide(
+                color: isSelected
+                    ? AppTheme.primaryColor
+                    : Colors.grey.shade300,
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
 
+    final paymentStatusFilterBar = widget.status == "PENDING"
+        ? _buildPaymentStatusFilter()
+        : null;
+
     if (_isLoading) {
-      return const AdminLoading();
+      return Column(
+        children: [
+          ?paymentStatusFilterBar,
+          const Expanded(child: AdminLoading()),
+        ],
+      );
     }
     if (_errorMessage != null && _orders.isEmpty) {
-      return AdminErrorState(error: _errorMessage!);
+      return Column(
+        children: [
+          ?paymentStatusFilterBar,
+          Expanded(child: AdminErrorState(error: _errorMessage!)),
+        ],
+      );
     }
     if (_orders.isEmpty) {
-      return AdminEmptyState(
-        text: AppMessage.adminEmptyOrders.text,
-        icon: Icons.receipt_long_outlined,
+      return Column(
+        children: [
+          ?paymentStatusFilterBar,
+          Expanded(
+            child: AdminEmptyState(
+              text: AppMessage.adminEmptyOrders.text,
+              icon: Icons.receipt_long_outlined,
+            ),
+          ),
+        ],
       );
     }
 
     return Column(
       children: [
+        ?paymentStatusFilterBar,
         Expanded(
           child: ListView.separated(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),

@@ -620,7 +620,9 @@ class ApiService {
   }) async {
     final url = (status == null || status.isEmpty)
         ? apiOrders
-        : Uri.parse(apiOrders).replace(queryParameters: {'status': status}).toString();
+        : Uri.parse(
+            apiOrders,
+          ).replace(queryParameters: {'status': status}).toString();
     final response = await getRequest(url);
     if (response is List) {
       final List<OrderModel> orders = [];
@@ -784,6 +786,7 @@ class ApiService {
   Future<Map<String, dynamic>> getAdminOrders({
     String? email,
     String? status,
+    String? paymentStatus,
     String? startDate,
     String? endDate,
     int pageNo = 1,
@@ -791,6 +794,9 @@ class ApiService {
     final query = <String, String>{'pageNo': pageNo.toString()};
     if (email != null && email.isNotEmpty) query['email'] = email;
     if (status != null && status.isNotEmpty) query['status'] = status;
+    if (paymentStatus != null && paymentStatus.isNotEmpty) {
+      query['paymentStatus'] = paymentStatus;
+    }
     if (startDate != null && startDate.isNotEmpty) {
       query['startDate'] = startDate;
     }
@@ -924,14 +930,17 @@ class ApiService {
       backendBaseUrl.replaceFirst(RegExp(r'^http'), 'ws');
   static String get wsChatUrl => "$wsBaseUrl/ws/chat";
 
-  static String get apiChatConversation => "$backendBaseUrl/api/chat/conversation";
-  static String get apiChatConversations => "$backendBaseUrl/api/chat/conversations";
+  static String get apiChatConversation =>
+      "$backendBaseUrl/api/chat/conversation";
+  static String get apiChatConversations =>
+      "$backendBaseUrl/api/chat/conversations";
   static String apiChatConversationMessages(int conversationId) =>
       "$backendBaseUrl/api/chat/conversations/$conversationId/messages";
   static String get apiChatSendMyMessage => "$backendBaseUrl/api/chat/messages";
   static String apiChatMarkRead(int conversationId) =>
       "$backendBaseUrl/api/chat/conversations/$conversationId/read";
-  static String get apiChatUnreadCount => "$backendBaseUrl/api/chat/unread-count";
+  static String get apiChatUnreadCount =>
+      "$backendBaseUrl/api/chat/unread-count";
 
   // The session cookie carrying auth, needed to authenticate the WebSocket handshake.
   Future<String?> getSessionCookie() async {
@@ -952,12 +961,16 @@ class ApiService {
   Future<List<ConversationSummary>> getConversations() async {
     final result = await getRequest(apiChatConversations);
     return (result as List<dynamic>)
-        .map((json) => ConversationSummary.fromJson(json as Map<String, dynamic>))
+        .map(
+          (json) => ConversationSummary.fromJson(json as Map<String, dynamic>),
+        )
         .toList();
   }
 
   Future<List<MessageModel>> getConversationMessages(int conversationId) async {
-    final result = await getRequest(apiChatConversationMessages(conversationId));
+    final result = await getRequest(
+      apiChatConversationMessages(conversationId),
+    );
     return (result as List<dynamic>)
         .map((json) => MessageModel.fromJson(json as Map<String, dynamic>))
         .toList();
@@ -965,7 +978,9 @@ class ApiService {
 
   // Customer sends a message in their own conversation.
   Future<MessageModel> sendMyMessage(String content) async {
-    final result = await postRequest(apiChatSendMyMessage, {'content': content});
+    final result = await postRequest(apiChatSendMyMessage, {
+      'content': content,
+    });
     return MessageModel.fromJson(result as Map<String, dynamic>);
   }
 
@@ -974,9 +989,10 @@ class ApiService {
     int conversationId,
     String content,
   ) async {
-    final result = await postRequest(apiChatConversationMessages(conversationId), {
-      'content': content,
-    });
+    final result = await postRequest(
+      apiChatConversationMessages(conversationId),
+      {'content': content},
+    );
     return MessageModel.fromJson(result as Map<String, dynamic>);
   }
 
