@@ -113,7 +113,7 @@ class _AdminProductsTabState extends State<AdminProductsTab> {
                 padding: EdgeInsets.zero,
                 backgroundColor: AppTheme.primaryColor,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
               child: const Icon(Icons.add),

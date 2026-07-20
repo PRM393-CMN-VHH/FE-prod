@@ -275,24 +275,42 @@ class AdminSearchBar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child: AdminCard(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: TextField(
-                controller: controller,
-                decoration: InputDecoration(
-                  border: InputBorder.none,
-                  filled: false,
-                  hintText: hintText,
-                  prefixIcon: const Icon(
+            child: Container(
+              height: 50,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppTheme.primaryColor,
+                  width: 2.0,
+                ),
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(width: 12),
+                  const Icon(
                     Icons.search,
                     color: AppTheme.textSecondaryColor,
                   ),
-                ),
-                textInputAction: TextInputAction.search,
-                onSubmitted: (_) => onSubmitted(),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: controller,
+                      decoration: InputDecoration(
+                        hintText: hintText,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      textInputAction: TextInputAction.search,
+                      onSubmitted: (_) => onSubmitted(),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
               ),
             ),
           ),

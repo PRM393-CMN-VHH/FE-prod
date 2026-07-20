@@ -86,11 +86,11 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     child: Container(
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(28),
-                        border: Border.all(color: Colors.grey.shade300, width: 1.2),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.primaryColor, width: 2.0),
                       ),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(26.8),
+                        borderRadius: BorderRadius.circular(10.0),
                         child: Container(
                           padding: const EdgeInsets.only(left: 4, right: 4),
                           color: Colors.white,
@@ -111,8 +111,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
                               ),
                               const SizedBox(width: 10),
                               const Icon(
-                                Icons.search,
-                                color: AppTheme.textSecondaryColor,
+                                  Icons.search,
+                                  color: AppTheme.textSecondaryColor,
                               ),
                               const SizedBox(width: 8),
                               Expanded(
@@ -164,8 +164,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   Container(
                     decoration: BoxDecoration(
                       color: AppTheme.primaryColor,
-                      borderRadius: BorderRadius.circular(28),
-                      border: Border.all(color: AppTheme.primaryColor, width: 1.2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.primaryColor, width: 2.0),
                     ),
                     child: IconButton(
                       icon: const Icon(Icons.tune, color: Colors.white),
