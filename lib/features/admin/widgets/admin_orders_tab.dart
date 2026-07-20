@@ -311,35 +311,45 @@ class _AdminOrderListState extends State<AdminOrderList>
     };
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      child: SizedBox(
-        height: 36,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          itemCount: options.length,
-          separatorBuilder: (_, _) => const SizedBox(width: 8),
-          itemBuilder: (context, index) {
-            final paymentStatus = options.keys.elementAt(index);
-            final label = options[paymentStatus]!;
-            final isSelected = paymentStatus == _paymentStatusFilter;
-            return ChoiceChip(
-              label: Text(label),
-              selected: isSelected,
-              onSelected: (_) => _setPaymentStatusFilter(paymentStatus),
-              selectedColor: AppTheme.primaryColor,
-              showCheckmark: false,
-              labelStyle: TextStyle(
-                color: isSelected ? Colors.white : AppTheme.textPrimaryColor,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      child: Row(
+        children: List.generate(options.length, (index) {
+          final paymentStatus = options.keys.elementAt(index);
+          final label = options[paymentStatus]!;
+          final isSelected = paymentStatus == _paymentStatusFilter;
+          return Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: index == 0 ? 0 : 4,
+                right: index == options.length - 1 ? 0 : 4,
               ),
-              backgroundColor: Colors.white,
-              side: BorderSide(
-                color: isSelected
-                    ? AppTheme.primaryColor
-                    : Colors.grey.shade300,
+              child: ChoiceChip(
+                label: Center(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : AppTheme.textPrimaryColor,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+                selected: isSelected,
+                onSelected: (_) => _setPaymentStatusFilter(paymentStatus),
+                selectedColor: AppTheme.primaryColor,
+                showCheckmark: false,
+                backgroundColor: Colors.white,
+                side: BorderSide(
+                  color: isSelected
+                      ? AppTheme.primaryColor
+                      : Colors.grey.shade300,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-            );
-          },
-        ),
+            ),
+          );
+        }),
       ),
     );
   }

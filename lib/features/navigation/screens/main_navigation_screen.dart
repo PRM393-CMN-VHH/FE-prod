@@ -6,7 +6,7 @@ import 'package:prm393/features/notifications/providers/notification_provider.da
 import 'package:prm393/features/catalog/providers/product_provider.dart';
 import 'package:prm393/features/chat/providers/chat_provider.dart';
 import 'package:prm393/features/admin/providers/admin_chat_provider.dart';
-import 'package:prm393/features/admin/screens/admin_screen.dart';
+import 'package:prm393/features/admin/widgets/admin_tabs.dart';
 import 'package:prm393/features/catalog/screens/product_list_screen.dart';
 import 'package:prm393/features/orders/screens/order_screen.dart';
 import 'package:prm393/features/cart/screens/cart_screen.dart';
@@ -69,77 +69,131 @@ class _MainNavigationState extends State<MainNavigation> {
     final adminChatProvider = Provider.of<AdminChatProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
     final isAdmin = authProvider.user?.isAdmin ?? false;
-    final screens = <Widget>[
-      if (!isAdmin) const ProductListScreen(),
-      if (!isAdmin) const OrderScreen(),
-      if (isAdmin) const AdminScreen(),
-      const ProfileScreen(),
-      const MapScreen(),
-      if (!isAdmin) const SupportScreen(),
-    ];
-    final titles = <String>[
-      if (!isAdmin) AppStrings.appName,
-      if (!isAdmin) AppStrings.cartAndOrders,
-      if (isAdmin) AppStrings.admin,
-      AppStrings.profile,
-      AppStrings.stores,
-      if (!isAdmin) AppStrings.support,
-    ];
+
+    final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+
+    final screens = isAdmin
+        ? const <Widget>[
+            AdminDashboardTab(),
+            AdminOrdersTab(),
+            AdminProductsTab(),
+            AdminUsersTab(),
+            AdminChatTab(),
+          ]
+        : const <Widget>[
+            ProductListScreen(),
+            OrderScreen(),
+            ProfileScreen(),
+            MapScreen(),
+            SupportScreen(),
+          ];
+
+    final titles = isAdmin
+        ? const <String>[
+            "Tổng quan",
+            "Đơn hàng",
+            "Sản phẩm",
+            "User",
+            "Chat",
+          ]
+        : <String>[
+            AppStrings.appName,
+            AppStrings.cartAndOrders,
+            AppStrings.profile,
+            AppStrings.stores,
+            AppStrings.support,
+          ];
+
     if (_currentIndex >= screens.length) {
       _currentIndex = screens.length - 1;
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.local_florist, color: AppTheme.primaryColor),
-            const SizedBox(width: 8),
-            Text(
-              titles[_currentIndex],
-              style: const TextStyle(
-                fontFamily: 'serif',
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          if (!isAdmin) ...[
-            IconButton(
-              icon: Badge(
-                label: Text(notificationProvider.unreadCount.toString()),
-                isLabelVisible: notificationProvider.unreadCount > 0,
-                child: const Icon(Icons.notifications_outlined),
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const NotificationScreen(),
+      appBar: (!isAdmin && _currentIndex == 4)
+          ? null
+          : AppBar(
+              title: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.local_florist, color: AppTheme.primaryColor),
+                  const SizedBox(width: 8),
+                  Text(
+                    titles[_currentIndex],
+                    style: const TextStyle(
+                      fontFamily: 'serif',
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                );
-              },
-            ),
-            IconButton(
-              icon: Badge(
-                label: Text(cartProvider.totalItemCount.toString()),
-                isLabelVisible: cartProvider.totalItemCount > 0,
-                child: const Icon(Icons.shopping_cart_outlined),
+                ],
               ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CartScreen(),
+              actions: [
+                if (isAdmin) ...[
+                  IconButton(
+                    icon: const Icon(Icons.map_outlined),
+                    tooltip: "Bản đồ cửa hàng",
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => Scaffold(
+                            backgroundColor: AppTheme.backgroundColor,
+                            appBar: AppBar(title: const Text("Bản đồ cửa hàng")),
+                            body: const MapScreen(),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
+                  IconButton(
+                    icon: const Icon(Icons.person_outline),
+                    tooltip: "Hồ sơ cá nhân",
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => Scaffold(
+                            backgroundColor: AppTheme.backgroundColor,
+                            appBar: AppBar(title: const Text("Hồ sơ")),
+                            body: const ProfileScreen(),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ] else ...[
+                  IconButton(
+                    icon: Badge(
+                      label: Text(notificationProvider.unreadCount.toString()),
+                      isLabelVisible: notificationProvider.unreadCount > 0,
+                      child: const Icon(Icons.notifications_outlined),
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const NotificationScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  IconButton(
+                    icon: Badge(
+                      label: Text(cartProvider.totalItemCount.toString()),
+                      isLabelVisible: cartProvider.totalItemCount > 0,
+                      child: const Icon(Icons.shopping_cart_outlined),
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CartScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ],
             ),
-          ],
-        ],
-      ),
       body: IndexedStack(
         index: _currentIndex,
         children: [
@@ -147,72 +201,93 @@ class _MainNavigationState extends State<MainNavigation> {
             _visitedTabIndices.contains(i) ? screens[i] : const SizedBox.shrink(),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-            _visitedTabIndices.add(index);
-          });
-          // Mark chat messages as read when navigating to SupportScreen (index 4 for non-admin)
-          if (!isAdmin && index == 4) {
-            Provider.of<ChatProvider>(context, listen: false).markAsRead();
-          }
-        },
-        items: [
-          if (!isAdmin)
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: "Trang chủ",
+      bottomNavigationBar: isKeyboardOpen
+          ? null
+          : BottomNavigationBar(
+              type: BottomNavigationBarType.fixed,
+              currentIndex: _currentIndex,
+              onTap: (index) {
+                setState(() {
+                  _currentIndex = index;
+                  _visitedTabIndices.add(index);
+                });
+                // Mark chat messages as read when navigating to SupportScreen (index 4 for non-admin)
+                if (!isAdmin && index == 4) {
+                  Provider.of<ChatProvider>(context, listen: false).markAsRead();
+                }
+              },
+              items: isAdmin
+                  ? [
+                      const BottomNavigationBarItem(
+                        icon: Icon(Icons.dashboard_outlined),
+                        activeIcon: Icon(Icons.dashboard),
+                        label: "Tổng quan",
+                      ),
+                      const BottomNavigationBarItem(
+                        icon: Icon(Icons.receipt_long_outlined),
+                        activeIcon: Icon(Icons.receipt_long),
+                        label: "Đơn hàng",
+                      ),
+                      const BottomNavigationBarItem(
+                        icon: Icon(Icons.local_florist_outlined),
+                        activeIcon: Icon(Icons.local_florist),
+                        label: "Sản phẩm",
+                      ),
+                      const BottomNavigationBarItem(
+                        icon: Icon(Icons.people_outline),
+                        activeIcon: Icon(Icons.people),
+                        label: "User",
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Badge(
+                          isLabelVisible: adminChatProvider.totalUnreadCount > 0,
+                          smallSize: 8,
+                          child: const Icon(Icons.chat_bubble_outline),
+                        ),
+                        activeIcon: Badge(
+                          isLabelVisible: adminChatProvider.totalUnreadCount > 0,
+                          smallSize: 8,
+                          child: const Icon(Icons.chat_bubble),
+                        ),
+                        label: "Chat",
+                      ),
+                    ]
+                  : [
+                      const BottomNavigationBarItem(
+                        icon: Icon(Icons.home_outlined),
+                        activeIcon: Icon(Icons.home),
+                        label: "Trang chủ",
+                      ),
+                      const BottomNavigationBarItem(
+                        icon: Icon(Icons.receipt_long_outlined),
+                        activeIcon: Icon(Icons.receipt_long),
+                        label: "Đơn hàng",
+                      ),
+                      const BottomNavigationBarItem(
+                        icon: Icon(Icons.person_outline),
+                        activeIcon: Icon(Icons.person),
+                        label: "Hồ sơ",
+                      ),
+                      const BottomNavigationBarItem(
+                        icon: Icon(Icons.map_outlined),
+                        activeIcon: Icon(Icons.map),
+                        label: "Cửa hàng",
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Badge(
+                          label: Text(chatProvider.unreadCount.toString()),
+                          isLabelVisible: chatProvider.unreadCount > 0,
+                          child: const Icon(Icons.chat_bubble_outline),
+                        ),
+                        activeIcon: Badge(
+                          label: Text(chatProvider.unreadCount.toString()),
+                          isLabelVisible: chatProvider.unreadCount > 0,
+                          child: const Icon(Icons.chat_bubble),
+                        ),
+                        label: "Hỗ trợ",
+                      ),
+                    ],
             ),
-          if (!isAdmin)
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.receipt_long_outlined),
-              activeIcon: Icon(Icons.receipt_long),
-              label: "Đơn hàng",
-            ),
-          if (isAdmin)
-            BottomNavigationBarItem(
-              icon: Badge(
-                isLabelVisible: adminChatProvider.totalUnreadCount > 0,
-                smallSize: 8,
-                child: const Icon(Icons.admin_panel_settings_outlined),
-              ),
-              activeIcon: Badge(
-                isLabelVisible: adminChatProvider.totalUnreadCount > 0,
-                smallSize: 8,
-                child: const Icon(Icons.admin_panel_settings),
-              ),
-              label: "Admin",
-            ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: "Hồ sơ",
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.map_outlined),
-            activeIcon: Icon(Icons.map),
-            label: "Cửa hàng",
-          ),
-          if (!isAdmin)
-            BottomNavigationBarItem(
-              icon: Badge(
-                label: Text(chatProvider.unreadCount.toString()),
-                isLabelVisible: chatProvider.unreadCount > 0,
-                child: const Icon(Icons.chat_bubble_outline),
-              ),
-              activeIcon: Badge(
-                label: Text(chatProvider.unreadCount.toString()),
-                isLabelVisible: chatProvider.unreadCount > 0,
-                child: const Icon(Icons.chat_bubble),
-              ),
-              label: "Hỗ trợ",
-            ),
-        ],
-      ),
     );
   }
 }
