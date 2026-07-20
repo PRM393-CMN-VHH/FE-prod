@@ -78,35 +78,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     }
   }
 
-  Future<void> _updateRole(UserModel user, int roleId) async {
-    final roleName = roleId == 1 ? "Admin" : "User";
-    final confirmed = await confirmAdminAction(
-      context,
-      title: AppMessage.adminChangeRoleTitle.format([roleName]),
-      message: AppMessage.adminChangeRoleMessage.format([
-        user.name.isEmpty ? user.email : user.name,
-        roleName,
-      ]),
-      confirmLabel: AppMessage.confirmDefault.text,
-    );
-    if (!confirmed) return;
 
-    try {
-      await ApiService().updateAdminUserRole(
-        userId: int.parse(user.id),
-        roleId: roleId,
-      );
-      if (!mounted) return;
-      showAdminMessage(
-        context,
-        AppMessage.adminRoleChanged.format([roleName]),
-      );
-      _refresh(resetPage: false);
-    } catch (e) {
-      if (!mounted) return;
-      showAdminError(context, e);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -222,35 +194,14 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                                         ? AdminPalette.success
                                         : AdminPalette.danger,
                                   ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: DropdownButtonFormField<int>(
-                                      initialValue:
-                                          user.roleId ??
-                                          (user.isAdmin ? 1 : 2),
-                                      decoration: const InputDecoration(
-                                        labelText: "Quyền",
-                                        prefixIcon: Icon(
-                                          Icons.security_outlined,
-                                        ),
-                                      ),
-                                      items: const [
-                                        DropdownMenuItem(
-                                          value: 1,
-                                          child: Text("Admin"),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 2,
-                                          child: Text("User"),
-                                        ),
-                                      ],
-                                      onChanged: (roleId) {
-                                        if (roleId != null &&
-                                            roleId != user.roleId) {
-                                          _updateRole(user, roleId);
-                                        }
-                                      },
-                                    ),
+                                  const SizedBox(width: 8),
+                                  AdminStatusChip(
+                                    label: user.roleId == 1 || user.isAdmin
+                                        ? "Admin"
+                                        : "User",
+                                    color: user.roleId == 1 || user.isAdmin
+                                        ? AdminPalette.info
+                                        : AdminPalette.neutral,
                                   ),
                                 ],
                               ),

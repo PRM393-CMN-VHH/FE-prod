@@ -493,40 +493,56 @@ class _AdminOrderListState extends State<AdminOrderList>
                       ],
                     ),
                     const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => OrderDetailScreen(
-                                  orderId: orderId as int,
-                                  isAdmin: true,
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        alignment: WrapAlignment.end,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => OrderDetailScreen(
+                                    orderId: orderId as int,
+                                    isAdmin: true,
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.visibility_outlined, size: 16),
-                          label: const Text("Xem chi tiết"),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppTheme.textSecondaryColor,
-                            side: BorderSide(color: Colors.grey.shade300),
+                              );
+                            },
+                            icon: const Icon(Icons.visibility_outlined, size: 14),
+                            label: const Text(
+                              "Xem chi tiết",
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppTheme.textSecondaryColor,
+                              side: BorderSide(color: Colors.grey.shade300, width: 1.2),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              minimumSize: const Size(0, 36),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        OutlinedButton.icon(
-                          onPressed: () =>
-                              _changeStatus(orderId as int, currentStatus),
-                          icon: const Icon(Icons.sync_alt, size: 16),
-                          label: const Text("Đổi trạng thái"),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppTheme.primaryColor,
-                            side: const BorderSide(color: AppTheme.primaryColor),
+                          OutlinedButton.icon(
+                            onPressed: () =>
+                                _changeStatus(orderId as int, currentStatus),
+                            icon: const Icon(Icons.sync_alt, size: 14),
+                            label: const Text(
+                              "Đổi trạng thái",
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppTheme.primaryColor,
+                              side: const BorderSide(color: AppTheme.primaryColor, width: 1.2),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              minimumSize: const Size(0, 36),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),

@@ -4,7 +4,7 @@ import 'package:prm393/core/network/api_service.dart';
 import 'package:prm393/core/theme/app_theme.dart';
 import 'package:prm393/core/utils/currency_formatter.dart';
 import 'package:prm393/features/admin/widgets/admin_common_widgets.dart';
-import 'package:prm393/features/admin/widgets/product_editor_dialog.dart';
+import 'package:prm393/features/admin/widgets/product_editor_screen.dart';
 import 'package:prm393/features/catalog/models/product.dart';
 
 const _lowStockThreshold = 5;
@@ -48,9 +48,11 @@ class _AdminProductsTabState extends State<AdminProductsTab> {
   }
 
   Future<void> _editProduct([Product? product]) async {
-    final saved = await showDialog<Product>(
-      context: context,
-      builder: (_) => ProductEditorDialog(product: product),
+    final saved = await Navigator.push<Product>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProductEditorScreen(product: product),
+      ),
     );
     if (saved == null) return;
     try {
@@ -191,12 +193,24 @@ class _AdminProductsTabState extends State<AdminProductsTab> {
                                     ),
                                     const SizedBox(height: 6),
                                     Text(
-                                      formatVnd(product.price),
+                                      "Giá gốc: ${formatVnd(product.price)}",
                                       style: const TextStyle(
-                                        color: AppTheme.primaryColor,
-                                        fontWeight: FontWeight.w800,
+                                        color: AppTheme.textPrimaryColor,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
                                       ),
                                     ),
+                                    if (product.promoPrice != null) ...[
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        "Giá KM: ${formatVnd(product.promoPrice!)}",
+                                        style: const TextStyle(
+                                          color: AppTheme.primaryColor,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
                                     const SizedBox(height: 6),
                                     Row(
                                       children: [
