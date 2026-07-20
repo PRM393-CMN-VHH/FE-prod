@@ -8,19 +8,26 @@ import 'package:prm393/features/cart/screens/vnpay_payment_screen.dart';
 import 'package:prm393/core/constants/app_messages.dart';
 import 'package:prm393/core/theme/app_theme.dart';
 import 'package:prm393/core/utils/status_translator.dart';
-import 'package:prm393/core/utils/payment_navigation_signal.dart';
 
-// Tab 0 = "Tất cả" (no status filter), last tab = paid transaction history.
-// Each status tab is fetched from the backend via GET /order/my-orders?status=...
+// Tab 0 = "Tất cả" (no status filter). "Đã giao" covers both DELIVERED
+// (shop marked it delivered) and COMPLETED (customer confirmed receipt) —
+// COMPLETED isn't a separate tab, it's just a further step within "Đã giao".
+// Each entry is fetched from the backend via GET /order/my-orders?status=...
+// (comma-separated when a tab covers more than one backend status).
 const List<String?> _orderStatusFilters = [
   null,
   'PENDING',
   'CONFIRMED',
   'SHIPPED',
-  'DELIVERED',
-  'COMPLETED',
+  'DELIVERED,COMPLETED',
   'CANCELLED',
 ];
+
+String _tabLabel(String? status) {
+  if (status == null) return "Tất cả";
+  if (status == 'DELIVERED,COMPLETED') return "Đã giao";
+  return StatusTranslator.orderStatus(status);
+}
 
 class OrderScreen extends StatefulWidget {
   const OrderScreen({super.key});
@@ -32,10 +39,7 @@ class OrderScreen extends StatefulWidget {
 class _OrderScreenState extends State<OrderScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
-  late final VoidCallback _paidOrdersListener;
   final Set<String?> _fetchedStatuses = {};
-
-  int get _paidTransactionsTabIndex => _orderStatusFilters.length;
 
   String? get _currentStatus {
     final index = _tabController.index;
@@ -48,40 +52,24 @@ class _OrderScreenState extends State<OrderScreen>
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: _orderStatusFilters.length + 1,
+      length: _orderStatusFilters.length,
       vsync: this,
     );
     _tabController.addListener(_onTabChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadOrders(status: null);
-      Provider.of<OrderProvider>(
-        context,
-        listen: false,
-      ).loadTransactionHistory();
     });
-    _paidOrdersListener = () {
-      if (!mounted) return;
-      _tabController.animateTo(_paidTransactionsTabIndex);
-      Provider.of<OrderProvider>(
-        context,
-        listen: false,
-      ).loadTransactionHistory();
-    };
-    paidOrdersRefreshSignal.addListener(_paidOrdersListener);
   }
 
   void _onTabChanged() {
     if (_tabController.indexIsChanging) return;
-    final index = _tabController.index;
-    if (index >= _orderStatusFilters.length) return;
-    final status = _orderStatusFilters[index];
+    final status = _orderStatusFilters[_tabController.index];
     if (_fetchedStatuses.contains(status)) return;
     _loadOrders(status: status);
   }
 
   @override
   void dispose() {
-    paidOrdersRefreshSignal.removeListener(_paidOrdersListener);
     _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     super.dispose();
@@ -182,11 +170,7 @@ class _OrderScreenState extends State<OrderScreen>
           onPaymentSuccess: (result) async {
             orderNavigator.pop();
             _fetchedStatuses.clear();
-            await _loadOrders(status: null);
-            await orderProvider.loadTransactionHistory();
-            if (!mounted) return;
-            _tabController.animateTo(_paidTransactionsTabIndex);
-            requestPaidOrdersView();
+            await _loadOrders(status: _currentStatus);
             orderMessenger.showSnackBar(
               SnackBar(
                 content: Text(AppMessage.paymentSuccessTitle.text),
@@ -230,12 +214,7 @@ class _OrderScreenState extends State<OrderScreen>
           tabAlignment: TabAlignment.start,
           tabs: [
             for (final status in _orderStatusFilters)
-              Tab(
-                text: status == null
-                    ? "Tất cả"
-                    : StatusTranslator.orderStatus(status),
-              ),
-            const Tab(text: "Đã thanh toán"),
+              Tab(text: _tabLabel(status)),
           ],
         ),
         Expanded(
@@ -252,12 +231,6 @@ class _OrderScreenState extends State<OrderScreen>
                   onRepay: _repayOrder,
                   onConfirmReceived: _confirmReceived,
                 ),
-              OrderList(
-                orders: orderProvider.paidTransactions,
-                isLoading: orderProvider.isLoading,
-                errorMessage: orderProvider.errorMessage,
-                onRefresh: orderProvider.loadTransactionHistory,
-              ),
             ],
           ),
         ),

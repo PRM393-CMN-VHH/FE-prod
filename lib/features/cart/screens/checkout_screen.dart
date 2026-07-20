@@ -12,7 +12,6 @@ import 'package:prm393/features/cart/widgets/checkout_order_summary.dart';
 import 'package:prm393/features/cart/widgets/checkout_delivery_form.dart';
 import 'package:prm393/features/cart/widgets/checkout_payment_method_selector.dart';
 import 'package:prm393/core/utils/error_translator.dart';
-import 'package:prm393/core/utils/payment_navigation_signal.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -133,9 +132,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             onPaymentSuccess: (result) async {
               navigator.pop();
               await cartProv.clearCart();
-              await orderProv.loadTransactionHistory();
               await notifProv.loadNotifications();
-              requestPaidOrdersView();
               if (!navigator.mounted) return;
               showDialog(
                 context: navigator.context,

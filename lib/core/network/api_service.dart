@@ -85,8 +85,6 @@ class ApiService {
   static String get apiOrderCancel => "$backendBaseUrl/order/cancel";
   static String get apiOrderConfirmReceived =>
       "$backendBaseUrl/order/confirm-received";
-  static String get apiTransactionHistory =>
-      "$backendBaseUrl/transaction/history";
   static String get apiPaymentCreate => "$backendBaseUrl/payment/create";
 
   // Reviews Routes
@@ -678,21 +676,6 @@ class ApiService {
 
   Future<void> confirmOrderReceived(int orderId) async {
     await postEmptyRequest("$apiOrderConfirmReceived/$orderId");
-  }
-
-  Future<List<OrderModel>> getTransactionHistory() async {
-    final response = await getRequest(apiTransactionHistory);
-    if (response is List) {
-      return response
-          .map(
-            (json) =>
-                OrderModel.fromJson(json as Map<String, dynamic>, const []),
-          )
-          .toList()
-          .reversed
-          .toList();
-    }
-    throw Exception("Invalid transaction history response from server");
   }
 
   // ==========================================

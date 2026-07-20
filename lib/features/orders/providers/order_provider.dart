@@ -12,7 +12,6 @@ class OrderProvider extends ChangeNotifier {
   // between status tabs doesn't clobber another tab's already-loaded list.
   final Map<String, List<OrderModel>> _ordersByStatus = {};
   final Set<String> _loadingStatuses = {};
-  List<OrderModel> _paidTransactions = [];
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -25,7 +24,6 @@ class OrderProvider extends ChangeNotifier {
 
   // Back-compat accessor for callers that only care about the unfiltered list.
   List<OrderModel> get orders => ordersFor(null);
-  List<OrderModel> get paidTransactions => _paidTransactions;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
@@ -128,19 +126,6 @@ class OrderProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
-  }
-
-  Future<void> loadTransactionHistory() async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-    try {
-      _paidTransactions = await _apiService.getTransactionHistory();
-    } catch (e) {
-      _errorMessage = ErrorTranslator.userMessage(e);
-    }
-    _isLoading = false;
-    notifyListeners();
   }
 
   Future<OrderModel?> placeOrder({
