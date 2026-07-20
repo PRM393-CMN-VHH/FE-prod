@@ -9,8 +9,13 @@ import 'package:prm393/features/orders/widgets/order_info_tile.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   final int orderId;
+  final bool isAdmin;
 
-  const OrderDetailScreen({super.key, required this.orderId});
+  const OrderDetailScreen({
+    super.key,
+    required this.orderId,
+    this.isAdmin = false,
+  });
 
   @override
   State<OrderDetailScreen> createState() => _OrderDetailScreenState();
@@ -22,12 +27,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _future = ApiService().getOrderDetail(widget.orderId);
+    _future = widget.isAdmin
+        ? ApiService().getAdminOrderDetail(widget.orderId)
+        : ApiService().getOrderDetail(widget.orderId);
   }
 
   Future<void> _refresh() async {
     setState(() {
-      _future = ApiService().getOrderDetail(widget.orderId);
+      _future = widget.isAdmin
+          ? ApiService().getAdminOrderDetail(widget.orderId)
+          : ApiService().getOrderDetail(widget.orderId);
     });
     await _future;
   }

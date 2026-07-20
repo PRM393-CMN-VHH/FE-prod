@@ -95,6 +95,8 @@ class ApiService {
   static String get apiAdminLogin => "$backendBaseUrl/admin/login";
   static String get apiAdminDashboard => "$backendBaseUrl/admin/dashboard";
   static String get apiAdminOrders => "$backendBaseUrl/admin/orders";
+  static String get apiAdminOrderDetail =>
+      "$backendBaseUrl/admin/orders/detail";
   static String get apiAdminOrderUpdateStatus =>
       "$backendBaseUrl/admin/orders/update-status";
   static String get apiAdminProducts => "$backendBaseUrl/admin/products";
@@ -818,6 +820,26 @@ class ApiService {
     final response = await postEmptyRequest(uri.toString());
     if (response is Map<String, dynamic>) return response;
     throw Exception("Invalid update order status response from server");
+  }
+
+  Future<OrderModel> getAdminOrderDetail(int orderId) async {
+    final response = await getRequest("$apiAdminOrderDetail/$orderId");
+    if (response is Map && response['orderDetails'] is List) {
+      final detailsList = response['orderDetails'] as List;
+      if (detailsList.isEmpty) {
+        throw Exception("Đơn hàng không có sản phẩm nào");
+      }
+      final firstDetail = detailsList.first as Map<String, dynamic>;
+      final orderMap = firstDetail['order'] as Map<String, dynamic>?;
+      if (orderMap == null) {
+        throw Exception("Không tìm thấy thông tin đơn hàng");
+      }
+      final items = detailsList
+          .map((json) => OrderItem.fromJson(json as Map<String, dynamic>))
+          .toList();
+      return OrderModel.fromJson(orderMap, items);
+    }
+    throw Exception("Invalid admin order detail response from server");
   }
 
   Future<Map<String, dynamic>> getAdminProducts({

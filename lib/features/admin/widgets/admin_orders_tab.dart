@@ -5,6 +5,7 @@ import 'package:prm393/core/theme/app_theme.dart';
 import 'package:prm393/core/utils/currency_formatter.dart';
 import 'package:prm393/core/utils/status_translator.dart';
 import 'package:prm393/features/admin/widgets/admin_common_widgets.dart';
+import 'package:prm393/features/orders/screens/order_detail_screen.dart';
 
 const _orderStatuses = [
   "PENDING",
@@ -492,18 +493,40 @@ class _AdminOrderListState extends State<AdminOrderList>
                       ],
                     ),
                     const SizedBox(height: 10),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: OutlinedButton.icon(
-                        onPressed: () =>
-                            _changeStatus(orderId as int, currentStatus),
-                        icon: const Icon(Icons.sync_alt, size: 16),
-                        label: const Text("Đổi trạng thái"),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppTheme.primaryColor,
-                          side: const BorderSide(color: AppTheme.primaryColor),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => OrderDetailScreen(
+                                  orderId: orderId as int,
+                                  isAdmin: true,
+                                ),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.visibility_outlined, size: 16),
+                          label: const Text("Xem chi tiết"),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.textSecondaryColor,
+                            side: BorderSide(color: Colors.grey.shade300),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        OutlinedButton.icon(
+                          onPressed: () =>
+                              _changeStatus(orderId as int, currentStatus),
+                          icon: const Icon(Icons.sync_alt, size: 16),
+                          label: const Text("Đổi trạng thái"),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.primaryColor,
+                            side: const BorderSide(color: AppTheme.primaryColor),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
