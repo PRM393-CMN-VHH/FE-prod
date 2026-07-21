@@ -19,6 +19,10 @@ class _AdminScreenState extends State<AdminScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) return;
+      setState(() {});
+    });
   }
 
   @override
@@ -97,8 +101,8 @@ class _AdminScreenState extends State<AdminScreen>
             ),
           ),
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
+            child: IndexedStack(
+              index: _tabController.index,
               children: const [
                 AdminDashboardTab(),
                 AdminOrdersTab(),

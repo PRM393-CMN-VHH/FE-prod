@@ -24,26 +24,12 @@ class MainNavigation extends StatefulWidget {
   State<MainNavigation> createState() => _MainNavigationState();
 }
 
-class _MainNavigationState extends State<MainNavigation>
-    with SingleTickerProviderStateMixin {
-  // TabController + TabBarView instead of IndexedStack: IndexedStack forces
-  // every tab (including the nested TabBarView inside OrderScreen) to relayout
-  // on every frame even while hidden, which crashes ("child.hasSize is not
-  // true") when a tab itself contains another TabBarView/PageView. AdminScreen
-  // already uses TabBarView for its own 5 tabs without this problem.
-  late final TabController _tabController;
+class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
-    _tabController.addListener(() {
-      if (_tabController.indexIsChanging) return;
-      setState(() {
-        _currentIndex = _tabController.index;
-      });
-    });
     // Fetch initial data after build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final productProv = Provider.of<ProductProvider>(context, listen: false);
@@ -68,12 +54,6 @@ class _MainNavigationState extends State<MainNavigation>
         Provider.of<ChatProvider>(context, listen: false).loadMessages();
       }
     });
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   @override
@@ -206,18 +186,16 @@ class _MainNavigationState extends State<MainNavigation>
                 const SizedBox(width: 8),
               ],
             ),
-      body: TabBarView(
-        controller: _tabController,
-        physics: const NeverScrollableScrollPhysics(),
-        children: screens,
-      ),
+      body: IndexedStack(index: _currentIndex, children: screens),
       bottomNavigationBar: isKeyboardOpen
           ? null
           : BottomNavigationBar(
               type: BottomNavigationBarType.fixed,
               currentIndex: _currentIndex,
               onTap: (index) {
-                _tabController.index = index;
+                setState(() {
+                  _currentIndex = index;
+                });
                 // Mark chat messages as read when navigating to SupportScreen (index 4 for non-admin)
                 if (!isAdmin && index == 4) {
                   Provider.of<ChatProvider>(context, listen: false).markAsRead();
