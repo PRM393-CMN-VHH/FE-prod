@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:prm393/features/auth/providers/auth_provider.dart';
 import 'package:prm393/features/notifications/providers/notification_provider.dart';
 import 'package:prm393/features/notifications/widgets/empty_notifications.dart';
 import 'package:prm393/features/notifications/widgets/notification_tile.dart';
+import 'package:prm393/features/orders/screens/order_detail_screen.dart';
 import 'package:prm393/core/theme/app_theme.dart';
 
 class NotificationScreen extends StatelessWidget {
@@ -70,7 +72,23 @@ class NotificationScreen extends StatelessWidget {
                       final notif = notifications[index];
                       return NotificationTile(
                         notification: notif,
-                        onTap: () => notifProv.markAsRead(notif.id),
+                        onTap: () {
+                          notifProv.markAsRead(notif.id);
+                          if (notif.orderId != null) {
+                            final isAdmin =
+                                context.read<AuthProvider>().user?.isAdmin ??
+                                false;
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => OrderDetailScreen(
+                                  orderId: notif.orderId!,
+                                  isAdmin: isAdmin,
+                                ),
+                              ),
+                            );
+                          }
+                        },
                       );
                     },
                   ),

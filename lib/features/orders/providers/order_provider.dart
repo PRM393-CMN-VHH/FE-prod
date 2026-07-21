@@ -1,16 +1,23 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:prm393/features/cart/models/cart_item.dart';
 import 'package:prm393/features/orders/models/order.dart';
 import 'package:prm393/features/catalog/models/product.dart';
 import 'package:prm393/core/network/api_service.dart';
+import 'package:prm393/core/network/order_socket_service.dart';
 import 'package:prm393/core/utils/error_translator.dart';
 
 class OrderProvider extends ChangeNotifier {
   final ApiService _apiService = ApiService();
+  final OrderSocketService _socket = OrderSocketService.instance;
+  StreamSubscription<OrderSocketEvent>? _socketSubscription;
 
   // Cached per status filter (key 'ALL' = no filter / null), so switching
   // between status tabs doesn't clobber another tab's already-loaded list.
   final Map<String, List<OrderModel>> _ordersByStatus = {};
+  // Remembers the args each status was last loaded with, so a live socket
+  // event can silently re-fetch that same tab without the screen asking again.
+  final Map<String, List<Product>> _lastLoadArgs = {};
   final Set<String> _loadingStatuses = {};
   bool _isLoading = false;
   String? _errorMessage;
@@ -29,6 +36,7 @@ class OrderProvider extends ChangeNotifier {
 
   Future<void> loadOrders(List<Product> products, {String? status}) async {
     final key = _key(status);
+    _lastLoadArgs[key] = products;
     _loadingStatuses.add(key);
     _errorMessage = null;
     notifyListeners();
@@ -38,12 +46,33 @@ class OrderProvider extends ChangeNotifier {
         products,
         status: status,
       );
+      unawaited(_connectSocket());
     } catch (e) {
       _errorMessage = ErrorTranslator.userMessage(e);
     }
 
     _loadingStatuses.remove(key);
     notifyListeners();
+  }
+
+  // Connects once and keeps listening for the provider's whole lifetime; a new
+  // order or a status change pushed by the backend silently re-fetches whatever
+  // status tabs are currently cached, so the on-screen list updates itself.
+  Future<void> _connectSocket() async {
+    final cookie = await _apiService.getSessionCookie();
+    await _socket.connect(wsUrl: ApiService.wsOrdersUrl, cookie: cookie);
+    _socketSubscription ??= _socket.events?.listen(_handleSocketEvent);
+  }
+
+  void _handleSocketEvent(OrderSocketEvent event) {
+    if (event.type != 'order_status_changed' && event.type != 'order_updated') {
+      return;
+    }
+    for (final key in _ordersByStatus.keys.toList()) {
+      final products = _lastLoadArgs[key];
+      if (products == null) continue;
+      unawaited(loadOrders(products, status: key == 'ALL' ? null : key));
+    }
   }
 
   Future<String?> getVnpayUrl({
@@ -163,5 +192,13 @@ class OrderProvider extends ChangeNotifier {
       notifyListeners();
       return null;
     }
+  }
+
+  @override
+  void dispose() {
+    // Don't disconnect: OrderSocketService.instance is shared with other
+    // providers/widgets that may still be listening.
+    _socketSubscription?.cancel();
+    super.dispose();
   }
 }

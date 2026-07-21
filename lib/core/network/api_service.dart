@@ -952,6 +952,7 @@ class ApiService {
   static String get wsBaseUrl =>
       backendBaseUrl.replaceFirst(RegExp(r'^http'), 'ws');
   static String get wsChatUrl => "$wsBaseUrl/ws/chat";
+  static String get wsOrdersUrl => "$wsBaseUrl/ws/orders";
 
   static String get apiChatConversation =>
       "$backendBaseUrl/api/chat/conversation";

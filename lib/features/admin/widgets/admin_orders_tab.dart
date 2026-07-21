@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:prm393/core/constants/app_messages.dart';
 import 'package:prm393/core/network/api_service.dart';
+import 'package:prm393/core/network/order_socket_service.dart';
 import 'package:prm393/core/theme/app_theme.dart';
 import 'package:prm393/core/utils/currency_formatter.dart';
 import 'package:prm393/core/utils/status_translator.dart';
@@ -27,6 +29,8 @@ class _AdminOrdersTabState extends State<AdminOrdersTab>
   final _emailController = TextEditingController();
   late final TabController _tabController;
   final ValueNotifier<int> _refreshNotifier = ValueNotifier<int>(0);
+  final OrderSocketService _socket = OrderSocketService.instance;
+  StreamSubscription<OrderSocketEvent>? _socketSubscription;
   String _searchEmail = "";
 
   @override
@@ -36,6 +40,20 @@ class _AdminOrdersTabState extends State<AdminOrdersTab>
       length: _orderStatuses.length + 1,
       vsync: this,
     );
+    _connectSocket();
+  }
+
+  // Any new order or status change pushed by the backend bumps the same
+  // refreshNotifier the tabs already listen to (used today after admin edits),
+  // so every open tab silently reloads instead of the admin refreshing manually.
+  Future<void> _connectSocket() async {
+    final cookie = await ApiService().getSessionCookie();
+    await _socket.connect(wsUrl: ApiService.wsOrdersUrl, cookie: cookie);
+    _socketSubscription = _socket.events?.listen((event) {
+      if (event.type == 'new_order' || event.type == 'order_updated') {
+        _refreshNotifier.value++;
+      }
+    });
   }
 
   @override
@@ -43,6 +61,8 @@ class _AdminOrdersTabState extends State<AdminOrdersTab>
     _emailController.dispose();
     _tabController.dispose();
     _refreshNotifier.dispose();
+    // Don't disconnect: OrderSocketService.instance is shared app-wide.
+    _socketSubscription?.cancel();
     super.dispose();
   }
 
