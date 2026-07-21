@@ -4,6 +4,7 @@ import 'package:prm393/core/constants/app_messages.dart';
 import 'package:prm393/features/catalog/models/product.dart';
 import 'package:prm393/features/catalog/models/review.dart';
 import 'package:prm393/features/cart/providers/cart_provider.dart';
+import 'package:prm393/features/cart/screens/cart_screen.dart';
 import 'package:prm393/features/catalog/providers/product_provider.dart';
 import 'package:prm393/features/catalog/widgets/product_detail_widgets.dart';
 import 'package:prm393/features/catalog/widgets/product_reviews_section.dart';
@@ -152,9 +153,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             label: "Xem giỏ",
             textColor: Colors.white,
             onPressed: () {
-              Navigator.pop(
+              Navigator.push(
                 context,
-              ); // Go back to Home and switch to Cart tab manually (or just return)
+                MaterialPageRoute(
+                  builder: (context) => const CartScreen(),
+                ),
+              );
             },
           ),
         ),

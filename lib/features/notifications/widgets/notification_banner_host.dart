@@ -58,12 +58,16 @@ class _NotificationBannerHostState extends State<NotificationBannerHost> {
   void _handleTap() {
     final notif = _visible;
     _dismiss();
-    final orderId = notif?.orderId;
-    if (orderId == null) return;
+    if (notif == null) return;
 
     final navState = widget.navigatorKey.currentState;
     final navContext = widget.navigatorKey.currentContext;
     if (navState == null || navContext == null) return;
+
+    Provider.of<NotificationProvider>(navContext, listen: false).markAsRead(notif.id);
+
+    final orderId = notif.orderId;
+    if (orderId == null) return;
     final isAdmin =
         Provider.of<AuthProvider>(navContext, listen: false).user?.isAdmin ??
         false;
