@@ -142,26 +142,50 @@ class OrderList extends StatelessWidget {
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          if (canConfirmReceived)
-                            ElevatedButton(
-                              onPressed: () => onConfirmReceived!(order),
-                              child: const Text("Đã nhận hàng"),
-                            ),
-                          if (canRepay)
-                            OutlinedButton(
-                              onPressed: () => onRepay!(order),
-                              child: const Text("Thanh toán"),
-                            ),
-                          if ((canRepay || canConfirmReceived) && canCancel)
-                            const SizedBox(width: 8),
-                          if (canCancel)
-                            TextButton(
-                              onPressed: () => onCancel!(order),
-                              child: const Text(
-                                "Hủy đơn",
-                                style: TextStyle(color: Colors.redAccent),
+                            if (canConfirmReceived)
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  minimumSize: const Size(0, 36),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  textStyle: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                onPressed: () => onConfirmReceived!(order),
+                                child: const Text("Đã nhận hàng"),
                               ),
-                            ),
+                            if (canRepay)
+                              OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size(0, 36),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  textStyle: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                onPressed: () => onRepay!(order),
+                                child: const Text("Thanh toán"),
+                              ),
+                            if ((canRepay || canConfirmReceived) && canCancel)
+                              const SizedBox(width: 8),
+                            if (canCancel)
+                              TextButton(
+                                style: TextButton.styleFrom(
+                                  minimumSize: const Size(0, 36),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  textStyle: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                onPressed: () => onCancel!(order),
+                                child: const Text(
+                                  "Hủy đơn",
+                                  style: TextStyle(color: Colors.redAccent),
+                                ),
+                              ),
                         ],
                       ),
                     ],
