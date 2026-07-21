@@ -112,7 +112,7 @@ class _AdminChatDetailScreenState extends State<AdminChatDetailScreen> {
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
               itemCount: messages.length,
               itemBuilder: (context, index) {
                 final message = messages[index];

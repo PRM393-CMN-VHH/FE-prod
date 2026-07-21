@@ -394,37 +394,36 @@ class AdminStatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AdminCard(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 30,
-            height: 30,
+            width: 24,
+            height: 24,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, color: color, size: 17),
+            child: Icon(icon, color: color, size: 14),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Text(
             "${value ?? 0}",
             style: const TextStyle(
               color: AppTheme.textPrimaryColor,
-              fontSize: 21,
+              fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 2),
           Text(
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: AppTheme.textSecondaryColor,
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -457,7 +456,7 @@ class AdminStatusBreakdownRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final ratio = total <= 0 ? 0.0 : (count / total).clamp(0.0, 1.0);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.zero,
       child: Row(
         children: [
           Container(

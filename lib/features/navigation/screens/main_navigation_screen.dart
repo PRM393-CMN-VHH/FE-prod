@@ -24,17 +24,26 @@ class MainNavigation extends StatefulWidget {
   State<MainNavigation> createState() => _MainNavigationState();
 }
 
-class _MainNavigationState extends State<MainNavigation> {
+class _MainNavigationState extends State<MainNavigation>
+    with SingleTickerProviderStateMixin {
+  // TabController + TabBarView instead of IndexedStack: IndexedStack forces
+  // every tab (including the nested TabBarView inside OrderScreen) to relayout
+  // on every frame even while hidden, which crashes ("child.hasSize is not
+  // true") when a tab itself contains another TabBarView/PageView. AdminScreen
+  // already uses TabBarView for its own 5 tabs without this problem.
+  late final TabController _tabController;
   int _currentIndex = 0;
-  // Tabs load their own data in initState, so IndexedStack must only build a
-  // tab's real screen once it's actually been visited — otherwise every tab
-  // (orders, store map, ...) fires its API calls immediately on app start
-  // just because IndexedStack keeps all children mounted.
-  final Set<int> _visitedTabIndices = {0};
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 5, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) return;
+      setState(() {
+        _currentIndex = _tabController.index;
+      });
+    });
     // Fetch initial data after build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final productProv = Provider.of<ProductProvider>(context, listen: false);
@@ -59,6 +68,12 @@ class _MainNavigationState extends State<MainNavigation> {
         Provider.of<ChatProvider>(context, listen: false).loadMessages();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   @override
@@ -103,10 +118,6 @@ class _MainNavigationState extends State<MainNavigation> {
             AppStrings.stores,
             AppStrings.support,
           ];
-
-    if (_currentIndex >= screens.length) {
-      _currentIndex = screens.length - 1;
-    }
 
     return Scaffold(
       appBar: (!isAdmin && _currentIndex == 4)
@@ -195,12 +206,10 @@ class _MainNavigationState extends State<MainNavigation> {
                 const SizedBox(width: 8),
               ],
             ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: [
-          for (var i = 0; i < screens.length; i++)
-            _visitedTabIndices.contains(i) ? screens[i] : const SizedBox.shrink(),
-        ],
+      body: TabBarView(
+        controller: _tabController,
+        physics: const NeverScrollableScrollPhysics(),
+        children: screens,
       ),
       bottomNavigationBar: isKeyboardOpen
           ? null
@@ -208,10 +217,7 @@ class _MainNavigationState extends State<MainNavigation> {
               type: BottomNavigationBarType.fixed,
               currentIndex: _currentIndex,
               onTap: (index) {
-                setState(() {
-                  _currentIndex = index;
-                  _visitedTabIndices.add(index);
-                });
+                _tabController.index = index;
                 // Mark chat messages as read when navigating to SupportScreen (index 4 for non-admin)
                 if (!isAdmin && index == 4) {
                   Provider.of<ChatProvider>(context, listen: false).markAsRead();

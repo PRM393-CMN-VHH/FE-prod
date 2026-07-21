@@ -1,11 +1,6 @@
-import 'package:flutter/foundation.dart'
-    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:webview_flutter/webview_flutter.dart';
-import 'package:prm393/core/constants/app_messages.dart';
 import 'package:prm393/features/stores/models/store_location.dart';
-import 'package:prm393/features/stores/widgets/store_info_drawer.dart';
+import 'package:prm393/features/stores/screens/store_detail_map_screen.dart';
 import 'package:prm393/core/network/api_service.dart';
 import 'package:prm393/core/theme/app_theme.dart';
 
@@ -18,100 +13,23 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   final ApiService _apiService = ApiService();
-  StoreLocation? _selectedLocation;
+  List<StoreLocation> _locations = [];
   bool _isLoading = true;
-  late final WebViewController _mapController;
 
   @override
   void initState() {
     super.initState();
-    _mapController = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setUserAgent(
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      )
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onPageFinished: (url) {
-            _mapController.runJavaScript('''
-              var style = document.createElement('style');
-              style.innerHTML = '.banner, .app-promo, .smart-banner, .open-in-maps, .open-in-maps-banner { display: none !important; }';
-              document.head.appendChild(style);
-            ''');
-          },
-        ),
-      );
     _loadLocations();
   }
 
   void _loadLocations() async {
     final locs = await _apiService.getStoreLocations();
-    setState(() {
-      if (locs.isNotEmpty) {
-        _selectedLocation = locs.first;
-      }
-      _isLoading = false;
-    });
-    if (locs.isNotEmpty) {
-      _loadAppleMap(locs.first);
+    if (mounted) {
+      setState(() {
+        _locations = locs;
+        _isLoading = false;
+      });
     }
-  }
-
-  Uri _appleMapUri(StoreLocation location) {
-    return Uri.https('maps.apple.com', '/', {
-      'll': '${location.latitude},${location.longitude}',
-      'q': location.name,
-      'z': '15',
-    });
-  }
-
-  void _loadAppleMap(StoreLocation location) {
-    _mapController.loadRequest(_appleMapUri(location));
-  }
-
-  void _openInExternalMap(StoreLocation location) async {
-    final appleMapsUrl = Uri.parse(
-      "maps://?ll=${location.latitude},${location.longitude}&q=${Uri.encodeComponent(location.name)}",
-    );
-    final browserAppleMapsUrl = _appleMapUri(location);
-    final googleMapsUrl = Uri.parse(
-      "https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}",
-    );
-    try {
-      if (!kIsWeb &&
-          defaultTargetPlatform == TargetPlatform.iOS &&
-          await canLaunchUrl(appleMapsUrl)) {
-        await launchUrl(appleMapsUrl, mode: LaunchMode.externalApplication);
-      } else if (await canLaunchUrl(browserAppleMapsUrl)) {
-        await launchUrl(
-          browserAppleMapsUrl,
-          mode: LaunchMode.externalApplication,
-        );
-      } else if (await canLaunchUrl(googleMapsUrl)) {
-        await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
-      } else {
-        await launchUrl(browserAppleMapsUrl, mode: LaunchMode.platformDefault);
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppMessage.mapOpenFailed.text),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    }
-  }
-
-  void _callStore(StoreLocation location) async {
-    final cleanPhone = location.phone.replaceAll(' ', '');
-    final url = Uri.parse("tel:$cleanPhone");
-    try {
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url);
-      }
-    } catch (_) {}
   }
 
   @override
@@ -122,18 +40,125 @@ class _MapScreenState extends State<MapScreen> {
       );
     }
 
-    return Column(
-      children: [
-        Expanded(flex: 5, child: WebViewWidget(controller: _mapController)),
-        Expanded(
-          flex: 4,
-          child: StoreInfoDrawer(
-            location: _selectedLocation,
-            onCall: () => _callStore(_selectedLocation!),
-            onDirections: () => _openInExternalMap(_selectedLocation!),
-          ),
+    if (_locations.isEmpty) {
+      return const Center(
+        child: Text(
+          "Không tìm thấy cửa hàng nào.",
+          style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 16),
         ),
-      ],
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _locations.length,
+      itemBuilder: (context, index) {
+        final location = _locations[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 2,
+          shadowColor: Colors.black.withValues(alpha: 0.05),
+          color: Colors.white,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => StoreDetailMapScreen(location: location),
+                ),
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          location.name,
+                          style: const TextStyle(
+                            color: AppTheme.primaryColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right,
+                        color: AppTheme.textSecondaryColor,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.location_on_outlined,
+                        color: AppTheme.textSecondaryColor,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          location.address,
+                          style: const TextStyle(
+                            color: AppTheme.textSecondaryColor,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.access_time,
+                        color: AppTheme.textSecondaryColor,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        "Giờ mở cửa: ${location.hours}",
+                        style: const TextStyle(
+                          color: AppTheme.textSecondaryColor,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.phone_outlined,
+                        color: AppTheme.textSecondaryColor,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        "Hotline: ${location.phone}",
+                        style: const TextStyle(
+                          color: AppTheme.textSecondaryColor,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

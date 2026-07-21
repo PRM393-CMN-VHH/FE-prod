@@ -86,9 +86,33 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     final chatProv = Provider.of<ChatProvider>(context);
     final messages = chatProv.messages;
+    final topPadding = MediaQuery.of(context).viewPadding.top;
 
     return Column(
       children: [
+        Container(
+          padding: EdgeInsets.only(top: topPadding),
+          color: AppTheme.backgroundColor,
+          child: Container(
+            height: 56,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: const Row(
+              children: [
+                Icon(Icons.local_florist, color: AppTheme.primaryColor),
+                SizedBox(width: 8),
+                Text(
+                  "Hỗ trợ",
+                  style: TextStyle(
+                    fontFamily: 'serif',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                    color: AppTheme.textPrimaryColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
         Expanded(
           child: chatProv.isLoading
               ? const Center(
@@ -98,7 +122,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 )
               : ListView.builder(
                   controller: _scrollController,
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final message = messages[index];

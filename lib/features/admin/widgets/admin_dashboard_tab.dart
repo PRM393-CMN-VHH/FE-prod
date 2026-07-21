@@ -80,7 +80,7 @@ class _AdminDashboardTabState extends State<AdminDashboardTab> {
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 3,
-                  childAspectRatio: 0.8,
+                  childAspectRatio: 1.05,
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
                 ),
@@ -98,44 +98,52 @@ class _AdminDashboardTabState extends State<AdminDashboardTab> {
               const SizedBox(height: 24),
               const AdminSectionHeader(title: "Đơn hàng theo trạng thái"),
               AdminCard(
-                child: Column(
-                  children: [
-                    AdminStatusBreakdownRow(
-                      label: "Chờ xử lý",
-                      count: pending,
-                      total: totalForRatio,
-                      color: AdminPalette.warning,
-                      icon: Icons.hourglass_empty,
-                    ),
-                    AdminStatusBreakdownRow(
-                      label: "Đã xác nhận",
-                      count: confirmed,
-                      total: totalForRatio,
-                      color: AdminPalette.info,
-                      icon: Icons.verified_outlined,
-                    ),
-                    AdminStatusBreakdownRow(
-                      label: "Đang giao",
-                      count: shipped,
-                      total: totalForRatio,
-                      color: AdminPalette.progress,
-                      icon: Icons.local_shipping_outlined,
-                    ),
-                    AdminStatusBreakdownRow(
-                      label: "Đã giao",
-                      count: delivered,
-                      total: totalForRatio,
-                      color: AdminPalette.success,
-                      icon: Icons.check_circle_outline,
-                    ),
-                    AdminStatusBreakdownRow(
-                      label: "Đã hủy",
-                      count: cancelled,
-                      total: totalForRatio,
-                      color: AdminPalette.danger,
-                      icon: Icons.cancel_outlined,
-                    ),
-                  ],
+                child: AdminStatusBreakdownRow(
+                  label: "Chờ xử lý",
+                  count: pending,
+                  total: totalForRatio,
+                  color: AdminPalette.warning,
+                  icon: Icons.hourglass_empty,
+                ),
+              ),
+              const SizedBox(height: 12),
+              AdminCard(
+                child: AdminStatusBreakdownRow(
+                  label: "Đã xác nhận",
+                  count: confirmed,
+                  total: totalForRatio,
+                  color: AdminPalette.info,
+                  icon: Icons.verified_outlined,
+                ),
+              ),
+              const SizedBox(height: 12),
+              AdminCard(
+                child: AdminStatusBreakdownRow(
+                  label: "Đang giao",
+                  count: shipped,
+                  total: totalForRatio,
+                  color: AdminPalette.progress,
+                  icon: Icons.local_shipping_outlined,
+                ),
+              ),
+              const SizedBox(height: 12),
+              AdminCard(
+                child: AdminStatusBreakdownRow(
+                  label: "Đã giao",
+                  count: delivered,
+                  total: totalForRatio,
+                  color: AdminPalette.success,
+                  icon: Icons.check_circle_outline,
+                ),
+              ),
+              const SizedBox(height: 12),
+              AdminCard(
+                child: AdminStatusBreakdownRow(
+                  label: "Đã hủy",
+                  count: cancelled,
+                  total: totalForRatio,
+                  color: AdminPalette.danger,
+                  icon: Icons.cancel_outlined,
                 ),
               ),
             ],
