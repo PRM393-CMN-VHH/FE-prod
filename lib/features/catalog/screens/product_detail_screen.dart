@@ -240,7 +240,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   // Stock check
                   Text(
                     product.stock > 0
-                        ? "Còn hàng (${product.stock} sản phẩm)"
+                        ? "Còn hàng"
                         : "Tạm hết hàng",
                     style: TextStyle(
                       color: product.stock > 0

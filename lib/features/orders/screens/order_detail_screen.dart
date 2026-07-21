@@ -11,6 +11,8 @@ import 'package:prm393/features/cart/providers/cart_provider.dart';
 import 'package:prm393/features/cart/screens/cart_screen.dart';
 import 'package:prm393/features/catalog/widgets/product_reviews_section.dart';
 import 'package:prm393/features/catalog/models/product.dart';
+import 'package:prm393/features/catalog/screens/product_detail_screen.dart';
+import 'package:prm393/features/admin/widgets/product_editor_screen.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   final int orderId;
@@ -317,7 +319,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size(double.infinity, 48),
-                          side: const BorderSide(color: AppTheme.primaryColor),
+                          side: const BorderSide(
+                            color: AppTheme.primaryColor,
+                            width: 1.2,
+                          ),
                           foregroundColor: AppTheme.primaryColor,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -426,6 +431,27 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                             ..._order!.items.map(
                               (item) => ListTile(
                                 contentPadding: EdgeInsets.zero,
+                                onTap: () {
+                                  if (widget.isAdmin) {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => ProductEditorScreen(
+                                          product: item.product,
+                                        ),
+                                      ),
+                                    ).then((_) => _loadOrder());
+                                  } else {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => ProductDetailScreen(
+                                          product: item.product,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
                                 leading: ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
                                   child: Image.network(

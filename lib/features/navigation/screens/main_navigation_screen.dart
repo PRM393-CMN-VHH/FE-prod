@@ -120,6 +120,22 @@ class _MainNavigationState extends State<MainNavigation> {
               actions: [
                 if (isAdmin) ...[
                   IconButton(
+                    icon: Badge(
+                      label: Text(notificationProvider.unreadCount.toString()),
+                      isLabelVisible: notificationProvider.unreadCount > 0,
+                      child: const Icon(Icons.notifications_outlined),
+                    ),
+                    tooltip: "Thông báo",
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const NotificationScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  IconButton(
                     icon: const Icon(Icons.map_outlined),
                     tooltip: "Bản đồ cửa hàng",
                     onPressed: () {
