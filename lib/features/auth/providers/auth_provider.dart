@@ -59,13 +59,13 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> requestOtp(String email) async {
+  Future<bool> requestOtp(String email, {String? phoneNumber}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      await _apiService.requestOtp(email: email);
+      await _apiService.requestOtp(email: email, phoneNumber: phoneNumber);
       _isLoading = false;
       notifyListeners();
       return true;

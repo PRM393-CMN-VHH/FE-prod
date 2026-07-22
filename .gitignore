@@ -24,7 +24,7 @@ migrate_working_dir/
 #.vscode/
 
 # Local backend config (per-developer LAN IP) — see .env.example
-#.env
+.env
 
 # Flutter/Dart/Pub related
 **/doc/api/

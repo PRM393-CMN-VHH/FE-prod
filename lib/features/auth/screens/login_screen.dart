@@ -49,6 +49,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_isSignUp) {
       final successReq = await authProvider.requestOtp(
         _emailController.text.trim(),
+        phoneNumber: _phoneController.text.trim(),
       );
       if (successReq && mounted) {
         showOtpVerificationDialog(

@@ -316,9 +316,13 @@ class ApiService {
   // AUTHENTICATION APIs
   // ==========================================
 
-  Future<void> requestOtp({required String email}) async {
+  Future<void> requestOtp({required String email, String? phoneNumber}) async {
     try {
-      await postRequest(apiRequestOtp, {"email": email});
+      await postRequest(apiRequestOtp, {
+        "email": email,
+        if (phoneNumber != null && phoneNumber.isNotEmpty)
+          "phoneNumber": phoneNumber,
+      });
     } catch (e) {
       throw Exception(_friendlyRequestError(e));
     }
