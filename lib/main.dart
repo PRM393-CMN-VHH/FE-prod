@@ -10,6 +10,7 @@ void main() async {
   } catch (_) {
     // .env is optional (gitignored, per-developer) — fall back silently.
   }
+  debugPrint('[API] Connecting to the backend: ${ApiService.backendBaseUrl}');
   await ApiService().initializeSupabase(url: '', anonKey: '');
 
   runApp(const FlowerShopApp());
